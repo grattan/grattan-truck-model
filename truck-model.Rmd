@@ -1,0 +1,809 @@
+---
+title: "Truck model"
+author: "Lachlan Fox"
+date: "20/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelling the Australian heavy vehicle fleet
+
+This R-markdown document sets out the assumptions and details of the Grattan model used to estimate the CO2 and pollutant emissions of the Australian heavy vehicle fleet. 
+
+
+
+## Vehicle attrition rates
+
+Vehicle attrition rates were estimated on an age basis using ABS tablebuilder data from the motor vehicle census (years 2013-2021). The code for this analysis is included in `01-vehicle-attrition.R`. 
+
+Heavy vehicles were initially aggregated into five categories: 
+
+  * Buses (> 9 seats)
+  * Light Rigid trucks (3.5-4.5t)
+  * Heavy Rigid Trucks (> 4.5t)
+  * Prime Movers 
+  * Non-freight carrying trucks (including Fire Appliances, Trucks with Machinery Mounted, Other Non Freight Carrying Trucks, Tow Trucks)
+  
+Attrition rates were calculated by comparing vehicles between subsequent motor vehicle censuses. By comparing, for example, the 2014 census to the 2013 census, it could be determine how many vehicle on register for each age group in the 2013 census survived to the 2014 census (where they would show up as 2013 age + 1). 
+
+The proportion of vehicle in each category surviving was calculated between the censuses from 2013-2020, and an average rate was calculated fro each age group. 
+
+
+``` {r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/01-vehicle-attrition.R")
+
+attrition %>% 
+  ggplot(aes(x = age, 
+             y = cumulative_attr, 
+             colour = vehicle_type)) +
+  geom_line() +
+  #geom_smooth() +
+  scale_x_continuous_grattan(limits = c(0, 50)) +
+  #geom_smooth() +
+  facet_wrap(~vehicle_type) +
+  theme_grattan() +
+  grattan_colour_manual() +
+  labs(title= "Vehicle attrition rates by segment",
+       subtitle = "Proportion of vehicles surviving by age",
+       x = "Vehicle age")
+
+```
+
+
+## Vehicle sales 
+
+Although the ABS motor vehicle census provides data on registered vehicles from 2013 onward, there is limited data available prior to 2013. However, to build a model of the heavy vehicle fleet, sales before this year are a key variable. 
+
+To estimate sales in each heavy vehicle category prior to 2013, vehicle attrition rates (as estimated above) were used to back-calculate vehicle sales. For example, at age 20, vehicle attrition rates may (for eg.) estimate that 20% of vehicles in a given category are still on register. Using the most recent MVUS (2021), by comparing how many vehicles sold in 2001 (20 years ago) are on register, an estimate of how many vehicles were initially sold can be calculated. If 5000 sold in 2001 are still on register in 2021, using the 20% surviving figure it can be estimated that 5000 * (1/0.2) = 25,000 new vehicles were sold in 2001. 
+
+To estimate future sales, it was assumed that sales will grow in line with population growth. Data on population growth was taken from the 2021 intergenerational report. Because historical sales are so volatile over time, the baseline figure for future forecasts was calculated as a 10 year average of past sales. 
+
+Past and forecast sales estimates using this method are included below.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/02-vehicle-sales.R")
+
+sales %>% 
+  mutate(estimate = case_when(
+    sales_year <= 2019 ~ "historical",
+    sales_year > 2019 ~ "forecast")) %>%
+  ggplot(aes(x = sales_year, y = sales, colour = estimate)) +
+  geom_line() +
+  theme_grattan() +
+  scale_y_continuous_grattan(breaks = c(0, 10000, 20000),
+                             labels = scales::label_number_si()) +
+  scale_x_continuous_grattan(breaks = c(1980, 2010, 2040)) +
+  grattan_colour_manual(2, reverse = TRUE) +
+  facet_wrap(~type) + 
+  labs(title = "Sales of heavy vehicles are forecast to grow in the future",
+       subtitle = "Estimated historical and forecast heavy vehicle sales")
+
+
+```
+
+
+## Vehicle kilometres traveled (VKTs) and estimated activity 
+
+### VKTs
+
+There is limited data available to estimate VKT's for Australian heavy vehicles. While the ABS motor vehicle use survey includes some high level results of the kilometres travelled by different vehicles types, and and vehicles of different ages, these categories are broad - for example, vehicle kilometres based on age are grouped into three categories only; < 5 years old, 5-15 years old, and >15 years old. 
+
+Estimating the total activity of trucks requires estimates of VKTs for trucks of all ages, not just in broad categories. This is particularly important given that the estimates from this model are intended to estimate vehicle pollution; which is dependent on how old a vehicle is (or more accurately, the technology in the vehicle, which has improved over time). As vehicles age, they tend to drive fewer kilometres per year -- for example, a 15 year old truck is unlikely to cover the same average distance as a 5 year old vehicle. If estimates fail to capture this relationship between VKTs and age, the share of driving from older, more polluting vehicle is likely to be significantly overestimated. 
+
+Given the lack of available data on the relationship between VKTs and age in an Australian context, estimates from the US MOVES model were adapted to an Australian setting. Equations for truck types from the US MOVES model (https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.360.3323&rep=rep1&type=pdf) were initially mapped to known data in Australia for articulated, rigid, and non-freight carrying trucks, providing trends for VKTs vs age. 
+
+For articulated trucks, given the MOVES data is a polynomial function that is only appropriate for trucks aged ~1-16 years, beyond 16 years it is assumed articulated truck VKTs follow a linear relationship, calibrated to provide consistent estimates with what is available from the ABS motor vehicle use census data. 
+
+Rigid trucks were similar adapted for an Australian setting, both in terms of the base km travelled, and the function itself. Minor dilations/translations were made to the MOVES function to provide similar estimates to the ABS MVUS. 
+
+Given there is a lack of MOVES data available for buses, they were assumed to follow a piecewise linear relationship. Buses were assumed to travel a constant distance for the first 10 years of operation, before declining linearly between ages of 10 and 30. They are assumed to cease operation at 30 years of operation (an assumption consistent with the attrition curves for buses). 
+
+All vehicle categories were also adjusted at age 0. Given that vehicles are likely to be sold throughout the year, and only in operation for part of it, the average VKT of a new (age 0) vehicle was assumed to be half of that otherwise estimated. 
+
+The resulting VKT curves are included below:
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/03-vkts.R")
+
+
+vkt %>% 
+  filter(age > 0) %>% 
+  ggplot(aes(x = age, y = vkt, colour = type)) +
+  geom_line() +
+  theme_grattan() +
+  scale_y_continuous_grattan(labels = scales::label_number_si()) +
+  scale_x_continuous_grattan() +
+  grattan_colour_manual(4) +
+  facet_wrap(~type, scales = "free_y") + 
+  labs(title = "Newer vehicles travel significantly further than older vehicles",
+       subtitle = "Estimated km travelled per year by vehicle type",
+       caption = "Note: Age 0 vehicles have been excluded from this chart",
+       x = "Vehicle age")
+
+
+```
+
+
+### Vehicle activity estimates
+
+Although the above curves provide an estimate of how far a given vehicle might travel based on its age and vehicle type, actual road freight activity is also determined by prevailing economic conditions and demand more generally. As a result, it's appropriate to scale the overall activity (or total VKTs) of the fleet based on forecasts of economic activity. 
+
+This is separate from the growth in freight caused by population growth, which is factored into estimates of future vehicle sales and fleet growth. 
+
+Three scenarios are assumed for growth in fleet activity - a central estimate, lower, and upper bound. The central estimate assumes that future fleet activity grows at a rate of 1/4 of GDP, a trajectory that when combined with increased fleet growth in line with population growth estimates, predicts overall freight activity to increase approximately in line with BITRE estimates (2019 - https://www.bitre.gov.au/sites/default/files/documents/research_report_152-final.pdf). The lower bound assumed that fleet activity remains unchanged, and follows population growth only. The upper bound scenario assumes that freight activity grows at 1/2 of the rate of forecast GDP growth (above the expected growth in line with population estimates). 
+
+Data for GDP forecast growth was taken from the 2021 intergenerational report. 
+
+Where vehicle activity estimates differed from historical estimates, activity is scaled in line with baseline results to provide consistency. The resulting estimated growth in VKTs over time is included below. Assuming no change in truck loads over time, this also corresponds to a forecast of growth in the total road freight task. 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+read_rds("data/all_fleets.rds")
+library(patchwork)
+
+
+freight_growth <- all_fleets %>% 
+  group_by(fleet_year, vkt_scenario) %>% 
+  summarise(total_vkts = sum(vkt * total)) %>% 
+  group_by(vkt_scenario) %>% 
+  mutate(perc_change = total_vkts[fleet_year == 2020],
+         perc_change = (total_vkts / perc_change) - 1) %>% 
+  select(-total_vkts) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = perc_change)
+
+
+cumulative <- freight_growth %>% 
+  ggplot() +
+  geom_ribbon(aes(
+    x = fleet_year,
+    ymin = vkt_lower,
+    ymax = vkt_upper),
+    fill = grattan_orange,
+    colour = NA,
+    alpha = 0.2) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central)) +
+  theme_grattan() +
+  scale_x_continuous(limits = c(2020, 2040)) +
+  scale_y_continuous_grattan(labels = scales::label_percent(
+    accuracy = 1,
+    suffix = "%",
+    scale = 100)) +
+  scale_x_continuous_grattan() +
+  grattan_colour_manual() +
+  labs(subtitle = "Cumulative growth",
+        x = NULL) 
+
+freight_growth_yoy <- all_fleets %>% 
+  group_by(fleet_year, vkt_scenario) %>% 
+  summarise(total_vkts = sum(vkt * total)) %>% 
+  group_by(vkt_scenario) %>% 
+  arrange(vkt_scenario, fleet_year) %>% 
+  mutate(perc_change = total_vkts / lag(total_vkts) - 1) %>% 
+  select(-total_vkts) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = perc_change)
+
+yoy <- freight_growth_yoy %>% 
+  ggplot() +
+  geom_ribbon(aes(
+    x = fleet_year,
+    ymin = vkt_lower,
+    ymax = vkt_upper),
+    fill = grattan_orange,
+    colour = NA,
+    alpha = 0.2) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central)) +
+  theme_grattan() +
+  scale_y_continuous_grattan(
+    limits = c(0, 0.05),
+    breaks = c(0, 0.01, 0.02, 0.03),
+    labels = scales::label_percent(
+      accuracy = 1.0,
+      suffix = "%",
+      scale = 100)) +
+  scale_x_continuous_grattan() +
+  grattan_colour_manual() +
+  labs(subtitle = "Year on year growth",
+       y = " ",
+       x = NULL)
+
+
+cumulative + yoy +
+  plot_annotation(
+       title = "Freight activity is estimated to grow",
+       subtitle = "Cumulative and year on year growth in freigth activity from 2020 levels")
+
+
+```
+
+
+
+## Fuel consumption estimates
+
+Fuel consumption in the road freight sector depends on many variables -- for example the type of truck, engine/truck efficiency, payload and driving conditions. 
+
+Detailed data on each of these variables is both unavailable, and likely beyond the needs of this modelling. In practice, fuel consumption averages tend to fluctuate in relatively narrow bands for different truck types, and reasonable estimates can be made using average values and trends over time. 
+
+Fuel consumption estimates for the Grattan model were based on data from the ABS MVUS. For articulated trucks sold before 2020, trucks within each ABS age band (<5, 0-15, >15) are ascribed the average fuel consumption rate for each band. For all categories, it is assumed for vehicles sold from 2021 onwards, that there are year on year efficiency improvements of 0.5% to fuel consumption (following assumption made in the nationa GHG accounts methodology). 
+
+Similar assumptions are made for non-freight carrying trucks - however, given that there is no clear difference in fuel consumption for non-freight carrying trucks of different ages, a single constant value is assumed for vehicles sold before 2020. For rigid trucks, a constant fuel consumption rate is assumed for vehicles sold before 2000. From 2000 to 2020, vehicles are assumed to follow a linear relationship determined from the MVUS. A similar approach is taken for buses, with a constant value assumed for buses made before 2005; a linear improvement assumed for vehicles between 2005 and 2020, and a set 0.5% efficiency improvement for vehicles sold after 2020. 
+
+
+### Electric/Zero emission vehicle forecasts
+
+Although the current heavy vehicle fleet has a negligible proportion of electric or zero emissions vehicles in operation, this is likely to change over time. The switch to heavy vehicles is unlikely to be fast, given zero emissions vehicle technology for heavy vehicles is in its infancy. However, as this modeling extends relatively far into the future, it needs to be considered to create a realistic estimate of the fleet. 
+
+To estimate Australian zero emissions heavy vehicle uptake, a lagged uptake of European forecasts was used for articulated, rigid and non-freight carrying trucks (McKinsey: https://www.mckinsey.com/industries/automotive-and-assembly/our-insights/whats-sparking-electric-vehicle-adoption-in-the-truck-industry). A lag of 5 years was assumed. Non-freight carrying trucks were assumed to follow the same trajectory as articulated trucks. 
+
+Buses were modeled separately, and assumed to meet 25% in 2030, 60% by 2035, and 100% by 2040. The rate of bus electrification is essentially likely to be driven by state government decision making. 
+
+For the purposes of estimating emissions, it is assumed that all zero emission heavy vehicles are electric vehicles. The enrgy consumption is assumed in line with upper bound estimates from the ICCT (https://theicct.org/sites/default/files/publications/EU-logistics-electrification-fv-202011.pdf). 
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/07-electric-hdvs.R")
+
+
+electric_uptake %>% 
+  ggplot(aes(x = sales_year,
+             y = electric_share,
+             colour = fuel_class)) +
+  geom_line() +
+  theme_grattan() +
+  grattan_colour_manual() +
+  scale_x_continuous_grattan(limits = c(2020, 2040),
+                             breaks = c(2020, 2030, 2040)) +
+  scale_y_continuous_grattan(breaks = c(0, 50, 100)) +
+  labs(title = "Zero emissions HDV estimates",
+       subtitle = "Proportion of new sales estimated to be zero emissions heavy vehicles",
+       x = NULL) +
+  facet_wrap(~fuel_class)
+
+
+
+```
+
+
+## BAU forecasts
+
+### Carbon emissions
+
+Under the assumed conditions, the business as usual forecast for CO2 emissions estimates that CO2 emissions from freight will continue to grow out to 2030. The Grattan estimates are above the Energia estimates which inform the 2021 national GHG accounts - however, these estimates are within the confidence intervals predicted. Past GHG accounts estimates are also within the confidence intervals. 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/08-fleet-turnover.R")
+#source("R/08-diser-historical-estimates.R")
+
+co2 <- all_fleets %>% 
+  group_by(fleet_year, fuel_class, vkt_scenario) %>% 
+  summarise(total_co2_mt = sum(co2 * total / 1000000000000)) 
+
+
+
+#Importing data + getting only trucks + buses-------------------------
+
+
+
+co2_forecasts <- read_xlsx("data/diser-co2-forecasts.xlsx",
+                           sheet = "Sheet1") %>% 
+  pivot_longer(cols = (2:11),
+               values_to = "emissions_mt",
+               names_to = "sector") %>% 
+  clean_names() %>% 
+  mutate(forecast_flag = case_when(
+    year < 2021 ~ "historical",
+    year >= 2021 ~ "forecast"
+  ))
+
+
+hdv_co2 <- co2_forecasts %>%   
+  filter(sector %in% c("Rigid trucks", "Articulated trucks", "Buses")) %>% 
+  mutate(sector = factor(sector, 
+                         levels = c("Articulated trucks", "Rigid trucks", "Buses"))) 
+
+
+hdv_co2 <- bind_rows(
+  hdv_co2,
+  
+  hdv_co2 %>% 
+    filter(year == 2021) %>% 
+    mutate(forecast_flag = "historical")
+)
+
+
+co2_ours <- co2 %>% 
+  mutate(forecast_flag = "Grattan forecast") %>% 
+  rename("emissions_mt" = total_co2_mt,
+         "year" = fleet_year,
+         "sector" = fuel_class) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = emissions_mt) %>% 
+  mutate("emissions_mt"= vkt_central)
+
+
+co2_forecasts <- bind_rows(
+  co2_ours,
+  hdv_co2
+)
+
+
+
+hdv_co2 <- co2_forecasts %>%   
+  filter(sector %in% c("Rigid trucks", "Articulated trucks", "Buses")) %>% 
+  mutate(sector = factor(sector, 
+                         levels = c("Articulated trucks", "Rigid trucks", "Buses"))) 
+
+
+#just plotting grattan/historical
+
+hdv_co2 <- hdv_co2 %>% 
+  mutate(include = case_when(
+    (forecast_flag == "Grattan forecast" & year > 2021) ~ TRUE,
+    (forecast_flag == "historical" & year <= 2021) ~ TRUE,
+    (forecast_flag == "forecast" & year > 2020 ~ TRUE))) %>% 
+  filter(include ==  TRUE)
+
+hdv_co2 <- bind_rows(
+  hdv_co2,
+  
+  hdv_co2 %>% 
+    filter(year == 2021) %>% 
+    mutate(forecast_flag = "Grattan forecast")) %>% 
+  filter(forecast_flag != "forecast")
+
+
+
+hdv_co2 %>% 
+  
+  filter(year <= 2030,
+         year >= 2005) %>% 
+  
+  ggplot() +
+  
+  #the confidence band
+  geom_ribbon(data = co2_forecasts %>% 
+                filter(sector %in% c("Rigid trucks", 
+                                     "Articulated trucks", "Buses"),
+                       forecast_flag == "Grattan forecast",
+                       year <= 2031) %>% 
+                mutate(sector = factor(sector, 
+                                       levels = c("Articulated trucks", 
+                                                  "Rigid trucks", "Buses"))),
+              aes(
+                x = year,
+                ymin = vkt_lower,
+                ymax = vkt_upper,
+                group = sector),
+              fill = grattan_red,
+              colour = NA,
+              alpha = 0.18) +
+  
+  geom_line(aes(x = year, 
+                y = emissions_mt,
+                colour = forecast_flag)) +
+  
+  theme_grattan() + 
+  grattan_colour_manual(2, 
+                        reverse = TRUE) +
+  scale_x_continuous_grattan(breaks = c(2010, 2021, 2030),
+                             limits = c(2004, 2033)) +
+  scale_y_continuous_grattan(breaks = c(0, 5, 10, 15),
+                             limits = c(0, 19)) +
+  
+  geom_point(data = hdv_co2 %>% 
+               filter(year %in% c(2005, 2021, 2030)),
+             aes(x = year, 
+                 y = emissions_mt,
+                 colour = forecast_flag)) +
+  
+  geom_text(data = hdv_co2 %>% 
+              filter(year %in% c(2005, 2021, 2030)),
+            aes(x = year + 1,
+                y = emissions_mt - 1.2,
+                label = round(emissions_mt,1),
+                colour = forecast_flag),
+            check_overlap = TRUE,
+            size = 5,
+            fontface = "bold") +
+  
+  geom_text(data = hdv_co2 %>% 
+              filter(sector == "Articulated trucks"),
+            aes(
+              x = 2005.7,
+              y = 13.9,
+              label = "Historical \nemissions",
+              hjust = 0,
+              size = 11),
+            colour = grattan_orange,
+            fontface = "bold",
+            check_overlap = TRUE) +
+  
+  geom_text(data = hdv_co2 %>% 
+              filter(sector == "Articulated trucks"),
+            aes(
+              x = 2018.7,
+              y = 16,
+              label = "Forecast \nemissions",
+              hjust = 0,
+              size = 11),
+            colour = grattan_red,
+            fontface = "bold",
+            check_overlap = TRUE) +
+  
+  
+  facet_wrap(~sector) +
+  
+  labs(title = "Emissions from heavy vehicles are forecast to rise",
+       subtitle = "Annual greenhouse gas emissions (Mt CO2e) from HDVs",
+       x = NULL)
+
+
+
+```
+
+
+
+
+
+### Pollutant emissions
+
+
+Estimates for pollutant emissions from the heavy vehicle fleet are based on total fuel consumption, and emissions factors for various pollutants and vehicle types (reported as gram of pollutant per litre of fuel burned). 
+
+Pollutant emissions factors were provided by BITRE, and broken into vehicle age, vehicle type, and fuel type. 
+
+This modeling is primarily focused on the two pollutants that cause the largest health costs - nitrous oxides (NOx) and particulate mater (PM). Particulate mater is reported as PM10 emissions (particles with an aerodynamic diameter of less that 10um), and accounts for exhuast emissions only. The vast majority of PM10 emissions from diesel engines are PM2.5 - particulates under 2.5ugin aerdynamic diameter - (https://www.epa.vic.gov.au/-/media/epa/files/publications/1709.pdf pages 18/19). Non-exhaust emissions on the other hand tend to be predominantly PM10 emissions. 
+
+Under a business as usual forecast, estimated pollutant emissions for NOx and PM10 are included below. They are broadly in line with NSW EPA estimates (https://www.epa.nsw.gov.au/-/media/epa/corporate-site/resources/air/vehicle-emissions.pdf?la=en&hash=CC1CC350EC56C59507CAE2A85899E8E98566224B), but a somewhat below 2020 BITRE estimates as part of the Euro 6 heavy vehicles RIS (https://www.infrastructure.gov.au/sites/default/files/migrated/vehicles/environment/forum/files/heavy-vehicle-emission-standards-for-cleaner-air.pdf), particularly for PM estimates. We're actually a bit above th NSW EPA estimates it's likely for NOx (although this is hard to necessarily tease out because it is only one state, but scaled using the fact that NSW does ~32% of total freight km's (MVUS). Their values scaled give PM rates of ~1.5k tonnes/year in 2020, and NOx rates of ~120k tonnes/year).
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/09-policy-scenarios.R")
+library(patchwork)
+
+
+nox <- all_emissions %>% 
+  group_by(fleet_year, vkt_scenario) %>% 
+  summarise(total_nox_t = sum(nox * fuel_used * total / 1000000),
+            total_pm10_t = sum(pm10 * fuel_used * total / 1000000)) %>% 
+  select(-total_pm10_t) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = total_nox_t) %>% 
+  ggplot() +
+  geom_ribbon(aes(x = fleet_year,
+                  ymin = vkt_lower / 1000,
+                  ymax = vkt_upper / 1000),
+              alpha = 0.2,
+              colour = NA) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central / 1000)) +
+  scale_y_continuous_grattan(limits = c(0, 200)) +
+  scale_x_continuous_grattan(breaks = c(2020, 2030, 2040)) +
+  theme_grattan() +
+  grattan_colour_manual() +
+  labs(subtitle = "NOx emissions",
+       x = NULL)
+
+
+pm_10 <- all_emissions %>% 
+  group_by(fleet_year, vkt_scenario) %>% 
+  summarise(total_nox_t = sum(nox * fuel_used * total / 1000000),
+            total_pm10_t = sum(pm10 * fuel_used * total / 1000000)) %>% 
+  select(-total_nox_t) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = total_pm10_t) %>% 
+  ggplot() +
+  geom_ribbon(aes(x = fleet_year,
+                  ymin = vkt_lower / 1000,
+                  ymax = vkt_upper / 1000),
+              alpha = 0.2,
+              colour = NA) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central / 1000)) +
+  scale_y_continuous_grattan(limits = c(0, 5)) +
+  scale_x_continuous_grattan(breaks = c(2020, 2030, 2040)) +
+  theme_grattan() +
+  grattan_colour_manual() +
+  labs(subtitle = "PM10 emissions",
+       x = NULL)
+
+nox + pm_10 + 
+  plot_annotation(title = "Forecast exhaust NOx and PM10 emissions",
+       subtitle = "Exhaust NOx and PM10 emissions from heavy vehicles ('000 tonnes per year)")
+
+```
+
+
+### Pollutant health costs
+
+The emission of pollutant emissions such as PM10 or NOx emissions has a harmful affect on health - particularly in densely populated, urban areas. The extent of the health cost caused by pollutants can be estimated by using `damage cost` figures; often expressed in as $ / tonne of pollutant emitted. 
+
+By multiplying the emissions through by damage costs, an estimate of total health costs under various policy scenarios can be forecast. Health costs used in the following estimates were provided by BITRE, and are based on impact pathway modeling conducted by Jacob Marsden Ass. (2016) as part of a review into fuel quality and vehicle emissions.
+
+While highly uncertain, these costs are broadly comparable with the range of other costs estimated in the literature (for example in the US: https://iopscience.iop.org/article/10.1088/1748-9326/ab1ab5/pdf)
+
+Costs are dissagregated into rural and urban costs to account for the differences in population exposure, and are assumed to increase over time in line with population growth and demographic changes. Disagregation into rural and regional emissions is determined by assiging each vehicle with a proportion of driving in each conditions. This share is calculated from the ABS motor vehicle use survey (2018) for each vehicle type, and assumed to be constant with vehicle age and over time 
+
+Secondary particulate emissions and non-exhuast emissions are not included in this analysis. 
+
+The estimated total health cost under a business as usual scenario is included below. 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/10-health-costs.R")
+library(patchwork)
+
+fleet_costs %>% 
+  pivot_longer(cols = 7:11,
+               values_to = "cost",
+               names_to = "pollutant") %>% 
+  filter(scenario == "Baseline") %>% 
+  group_by(scenario, vkt_scenario, fleet_year) %>% 
+  summarise(cost = sum(cost)) %>% 
+  pivot_wider(values_from = cost,
+              names_from = vkt_scenario) %>% 
+  
+  ggplot(aes(x = fleet_year)) +
+  geom_ribbon(aes(
+    ymin = vkt_lower / 1000000,
+    ymax = vkt_upper / 1000000,
+    fill = scenario),
+    alpha = 0.2,
+    colour = NA) +
+  geom_line(aes(y = vkt_central / 1000000)) +
+  grattan_colour_manual() + 
+  grattan_fill_manual() +
+  scale_y_continuous_grattan(labels = scales::label_dollar(),
+                             limits = c(0, 3000)) +
+  theme_grattan() +
+  labs(title = "Without intervention, health costs from heavy vehicles will rise",
+       subtitle = "Estimated business as usual annual health cost, ($ millions, undiscounted)",
+       caption = "Confidence intervals reflect uncertainty in estimated freight growth only.",
+       x = NULL)
+
+
+```
+
+
+These results indicate that primary exhaust pollutants carry a health cost of approximately $2 billion annually, and this figure is likely to grow to \$2.5 billion by 2040 under a business as usual scenario. When compared to past estimates, such as a detailed study prepared by BITRE in 2005 (https://www.bitre.gov.au/sites/default/files/wp_063.pdf), these results are consistent. BITRE estimated a total health cost of between \$1.5-\$4 billion in 2005 from motor vehicle emissions, using different methodology. Although secondary particulate emissions were included in that study, non-exhaust emissions were similarly excluded.  
+
+The fraction of cost attributable to each vehicle segment differs considerably. Rigid trucks are estimated to be responsible for the largest fraction of health costs, followed by articulated trucks. 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/10-health-costs.R")
+library(patchwork)
+
+fleet_costs %>% 
+  pivot_longer(cols = 7:11,
+               values_to = "cost",
+               names_to = "pollutant") %>% 
+  group_by(scenario, vkt_scenario, fleet_year, fuel_class) %>% 
+  summarise(cost = sum(cost)) %>% 
+  pivot_wider(values_from = cost,
+              names_from = vkt_scenario) %>% 
+  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
+  
+  ggplot(aes(x = fleet_year)) +
+  geom_ribbon(aes(
+    ymin = vkt_lower / 1000000,
+    ymax = vkt_upper / 1000000,
+    fill = scenario),
+    alpha= 0.2,
+    colour = NA) +
+  geom_line(aes(y = vkt_central / 1000000,
+                colour = scenario)) +
+  grattan_colour_manual() + 
+  grattan_fill_manual() +
+  scale_y_continuous_grattan(labels = scales::label_dollar()) +
+  scale_x_continuous_grattan(breaks = c(2020, 2030, 2040)) +
+  theme_grattan(legend = "top") +
+  labs(title = "Rigid trucks cause the gretest cost to health",
+       subtitle = "Estimated annual health cost, ($ millions, undiscounted)",
+       x = NULL) +
+  facet_wrap(~fuel_class)
+
+```
+
+
+Exploring the age profile of vehicle causing health effects is also useful. The following chart breaks down the health costs over the age profile of the fleet. It demonstrates that while old vehicle are not particularly problematic for articulated trucks, older rigid trucks (15-20 years old) contribute significantly to overall health costs.  
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/10-health-costs.R")
+library(patchwork)
+
+fleet_costs %>% 
+  filter(fleet_year == 2021) %>% 
+  pivot_longer(cols = 7:11,
+               values_to = "cost",
+               names_to = "pollutant") %>% 
+  filter(scenario == "Baseline") %>% 
+  group_by(age, scenario, vkt_scenario, fleet_year, fuel_class) %>% 
+  summarise(cost = sum(cost)) %>% 
+  pivot_wider(values_from = cost,
+              names_from = vkt_scenario) %>% 
+  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
+  
+  ggplot(aes(x = age)) +
+  geom_ribbon(aes(
+    ymin = vkt_lower / 1000000,
+    ymax = vkt_upper / 1000000,
+    fill = scenario),
+    alpha= 0.2,
+    colour = NA) +
+  geom_smooth(aes(y = vkt_central / 1000000,
+                colour = fuel_class),
+              span = 0.5,
+              se = TRUE,
+              alpha = 0.1) +
+  grattan_colour_manual() + 
+  grattan_fill_manual() +
+  scale_y_continuous_grattan(labels = scales::label_dollar(),
+                             limits = c(0, 40)) +
+  theme_grattan() +
+  labs(title = "Older rigid trucks are responsible for significant health costs",
+       subtitle = "Estimated annual health cost by vehicle age, ($ millions, undiscounted)",
+       x = "Vehicle age") +
+  facet_wrap(~fuel_class)
+
+
+```
+
+
+
+
+## Policy scenarios
+
+The above two scenarios for carbon dioxide and pollutant emissions are business as usual scenarios - scenarios we consider likely to occur with no action taken. However, there are various policy levers that can be used to lower carbon and pollutant emissions. 
+
+The following section explores forecast carbon dioxide emissions, and for pollutant emissions, health costs, associated with various policy interventions. 
+
+
+
+### Carbon emission reduction policies
+
+
+
+
+
+
+
+### Euro VI pollutant standards
+
+Euro VI pollutant standards for heavy vehicles are common globally and have been proposed many times for Australia. The following charts illustrate the estimated affect of EUro VI regulations on pollutant emissions from the heavy vehicle fleet. 
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+source("R/09-scenario-euro-6.R")
+library(patchwork)
+
+# First for NOx
+
+euro6_nox <- nox_scenarios %>% 
+  mutate(scenario = factor(scenario,
+                           levels = names(colours))) %>% 
+  ggplot() +
+  geom_ribbon(aes(x = fleet_year,
+                  ymin = vkt_lower / 1000,
+                  ymax = vkt_upper / 1000,
+                  fill = scenario),
+              alpha = 0.15,
+              colour = NA) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central / 1000,
+                colour = scenario)) +
+  scale_y_continuous_grattan(limits = c(0, 200)) +
+  theme_grattan() +
+  scale_colour_manual(values = colours) + 
+  scale_fill_manual(values = colours) +
+  labs(subtitle = "NOx emissions",
+       x = NULL) +
+  
+  geom_text(aes(
+    x = 2020,
+    y = 185,
+    label = "Baseline"),
+    hjust = "left",
+    fontface = "bold",
+    colour = grattan_red,
+    check_overlap = TRUE,
+    size = 5) +
+  
+  geom_text(aes(
+    x = 2020,
+    y = 175,
+    label = "Euro 6 (2027)"),
+    hjust = "left",
+    fontface = "bold",
+    colour = grattan_orange,
+    check_overlap = TRUE,
+    size = 5) +
+  
+  geom_text(aes(
+    x = 2020,
+    y = 165,
+    label = "Euro 6 (2024)"),
+    hjust = "left",
+    fontface = "bold",
+    colour = grattan_yellow,
+    check_overlap = TRUE,
+    size = 5)
+
+
+# And for PM 
+
+euro6_pm <- pm_scenarios %>% 
+  ggplot() +
+  geom_ribbon(aes(x = fleet_year,
+                  ymin = vkt_lower / 1000,
+                  ymax = vkt_upper / 1000,
+                  fill = scenario),
+              alpha = 0.2,
+              colour = NA) +
+  geom_line(aes(x = fleet_year,
+                y = vkt_central / 1000,
+                colour = scenario)) +
+  scale_y_continuous_grattan(limits = c(0, 4)) +
+  theme_grattan() +
+  scale_colour_manual(values = colours) + 
+  scale_fill_manual(values = colours) +
+  labs(subtitle = "PM10 emissions",
+       x = NULL) +
+  
+  geom_text(aes(
+    x = 2040,
+    y = 2.75,
+    label = "Baseline"),
+    hjust = "right",
+    fontface = "bold",
+    colour = grattan_red,
+    check_overlap = TRUE,
+    size = 5) +
+  
+  geom_text(aes(
+    x = 2040,
+    y = 2.5,
+    label = "Euro 6 (2027)"),
+    hjust = "right",
+    fontface = "bold",
+    colour = grattan_orange,
+    check_overlap = TRUE,
+    size = 5) +
+  
+  geom_text(aes(
+    x = 2040,
+    y = 2.25,
+    label = "Euro 6 (2024)"),
+    hjust = "right",
+    fontface = "bold",
+    colour = grattan_yellow,
+    check_overlap = TRUE,
+    size = 5)
+
+
+euro6_nox + euro6_pm + plot_annotation(title = "Euro 6 regulations signifciantly curb pollutant emissions",
+                                       subtitle = "Yearly NOx and exhaust PM10 emissions ('000 tonnes)")
+
+
+```
+
+
+
+
+
+
+
