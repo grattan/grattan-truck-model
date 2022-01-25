@@ -93,8 +93,6 @@ vech_age_breakdown <- health_costs %>%
         subtitle = "Estimated annual health cost by vehicle age, ($ millions, undiscounted)",
         x = "Vehicle age") +
    facet_wrap(~fuel_class)
-
-
  
  
  
@@ -192,6 +190,11 @@ non_substitued_discounted %>%
   
   facet_wrap(~fuel_class)
 
+
+
+#grattan_save(filename = "atlas/non-subbed-cost",
+#             type = "fullslide",
+#             save_ppt = TRUE)
 
 
 # Calculating the marginal cost with substitutability -------------------------
@@ -367,6 +370,9 @@ substituted_final %>%
 
 
 
+#grattan_save(filename = "atlas/subbed-cost",
+#             type = "fullslide",
+#             save_ppt = TRUE)
 
 
 

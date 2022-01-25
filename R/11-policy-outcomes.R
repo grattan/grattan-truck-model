@@ -144,20 +144,68 @@ co2_plot <- historical_projection_comb %>%
   geom_line() +
   
   theme_grattan() +
-  scale_y_continuous_grattan(limits = c(0, 34)) +
-  scale_x_continuous_grattan(limits = c(2000, 2045),
+  scale_y_continuous_grattan(limits = c(0, 32)) +
+  scale_x_continuous_grattan(limits = c(2000, 2048),
                              breaks = c(2000, 2020, 2040)) +
   scale_colour_manual(values = co2_colours) +
   scale_fill_manual(values = co2_colours) +
   labs(title = "A combination of vehicle standards and ZEV mandates can bring down HDV emissions",
        subtitle = "Annual carbon emissions from HDVs (Mt CO2)",
-       x = NULL)
+       caption = "Historical emissions are from DISER. Forecasts from Grattan analysis. Does not include scope 2 emissions
+       from diesel vehicles.",
+       x = NULL) +
+  
+  geom_text(aes(x = 2040.5,
+              y = 28.2,
+              label = "Forecast \nemissions",
+              hjust = 0,
+              size = 11),
+            colour = grattan_darkred,
+            fontface = "bold",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2011,
+                y = 23.5,
+                label = "Historical",
+                hjust = 0,
+                size = 11),
+            colour = grattan_black,
+            fontface = "bold",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2040.5,
+                y = 19,
+                label = "ZEV targets",
+                hjust = 0,
+                size = 11),
+            colour = grattan_red,
+            fontface = "bold",
+            check_overlap = TRUE)  +
+  
+  geom_text(aes(x = 2040.5,
+                y = 22.5,
+                label = "Technology \nstandards",
+                hjust = 0,
+                size = 11),
+            colour = grattan_orange,
+            fontface = "bold",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2036,
+                y = 14,
+                label = "Technology standards \n+ ZEV targets",
+                hjust = 0,
+                size = 11),
+            colour = grattan_yellow,
+            fontface = "bold",
+            check_overlap = TRUE)
 
+  
 co2_plot
 
 
- #grattan_save(object = co2_plot, 
-#              type = "fullslide",
+#grattan_save(object = co2_plot, 
+#              type = "normal",
 #              save_pptx = TRUE,
 #              filename = "atlas/co2_plot.pdf")
 
