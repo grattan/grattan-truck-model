@@ -218,7 +218,7 @@ policy_scenarios <- policy_scenarios %>%
     pollutant %in% c("ex_pm10_l", "ex_pm25_l", "ex_sox_l", "ex_voc_l", "ex_nox_l",
                      "secon_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
     pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", 
-                     "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km") ~ pollutant_rate * vkt / 1000000),
+                     "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km") ~ total * pollutant_rate * vkt / 1000000),
     
     #these names are broad categories designed to be consistent with the BITRE damage cost estimates
     #so we can join them shortly (and are also just helpful categories)
@@ -308,10 +308,20 @@ write_rds(damage_costs, "data/damage-costs.rds")
 
 policy_outcomes <- left_join(policy_scenarios,
                               
-                             damage_costs)
+                             damage_costs) %>% 
+  mutate(health_cost_total = pollutant_total * damage_cost_t)
 
 
 write_rds(policy_outcomes, "data/policy_outcomes.rds")
+
+
+
+
+
+
+
+
+
 
 
 health_costs <- policy_outcomes %>%
@@ -354,7 +364,7 @@ costs_bar <- health_costs %>%
   scale_colour_manual(values = scenario_vals) + 
   scale_fill_manual(values = scenario_vals) +
   scale_y_continuous_grattan(labels = scales::label_dollar(),
-                             limits = c(0, 3000)) +
+                             limits = c(0, 4500)) +
   theme_grattan() +
   labs(title = "Without intervention, health costs from heavy vehicles will rise",
        subtitle = "Estimated annual health cost, ($ millions, undiscounted)",
@@ -395,7 +405,7 @@ costs_dots <- health_costs %>%
   scale_size_area(max_size = 4) +
   scale_fill_manual(values = scenario_vals) +
   scale_y_continuous_grattan(labels = scales::label_dollar(),
-                             limits = c(0, 3500)) +
+                             limits = c(0, 4000)) +
   theme_grattan() +
   labs(title = "Without intervention, health costs from heavy vehicles will rise",
        subtitle = "Estimated annual health cost, ($ millions, undiscounted)",
