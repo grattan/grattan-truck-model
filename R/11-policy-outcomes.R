@@ -7,7 +7,6 @@
 
 # Carbon emissions -------------------------------------------------
 source("R/00-setup.R")
-source("R/00-data-inputs.R")
 policy_scenarios <- read_rds("data/policy-scenarios.rds")
 
 # So the co2 is made up of:
@@ -27,6 +26,7 @@ policy_scenarios <- policy_scenarios %>%
 
 # Calulating the totals
 co2_scenarios <- policy_scenarios %>% 
+  filter(pollutant == "ex_nox_l") %>% 
   group_by(fleet_year, fuel_class, vkt_scenario, scenario) %>% 
   summarise(total_co2_mt = sum(co2 / 1000000000000)) 
 
@@ -86,7 +86,7 @@ co2_scenarios %>%
 
 # -------------------------------------
 
-diser_co2 <- read_xlsx("data/diser-co2-forecasts.xlsx",
+diser_co2 <- read_xlsx("data-raw/diser-co2-forecasts.xlsx",
                        sheet = "Sheet1") %>% 
   pivot_longer(cols = (2:11),
                values_to = "emissions_mt",
@@ -196,49 +196,71 @@ sox_conversion <- 1/40
 
 #' Calculating the totals for the different fractions 
 
+#Adding rows for the secondary pollutants to the dataset
+policy_scenarios <- bind_rows(
+  policy_scenarios,
+  
+  policy_scenarios %>% 
+    filter(pollutant %in% c("ex_nox_l", "ex_sox_l")) %>% 
+    mutate(pollutant_rate = if_else(
+      pollutant == "ex_nox_l", 
+      pollutant_rate * nox_conversion,
+      pollutant_rate * sox_conversion),
+           pollutant = "secon_pm25")) 
+
+
+
 policy_scenarios <- policy_scenarios %>% 
   #we are assuming 92% of the pm10 from diesel exhuast is pm2.5 - the remaining is pm2.5-10)
   #this is from: https://cfpub.epa.gov/si/si_public_file_download.cfm?p_download_id=527145 page 15 
   #all figures are also converted to tonnes
-  mutate(ex_pm10 = 0.08 * ex_pm10_l * fuel_consumption / 1000000,
-         ex_pm25 = 0.92 * ex_pm10_l * fuel_consumption / 1000000,
-         ex_sox = ex_sox_l * fuel_consumption / 1000000,
-         ex_voc = ex_voc_l * fuel_consumption / 1000000,
-         ex_nox = ex_nox_l * fuel_consumption / 1000000,
-         non_ex_pm10 = vkt * (tyre_pm10_km + brake_pm10_km + road_wear_pm10_km) * total / 1000000,
-         non_ex_pm25 = vkt * (tyre_pm25_km + brake_pm25_km + road_wear_pm25_km) / 1000000,
-         secon_pm25 =  ((ex_nox_l * nox_conversion * fuel_consumption) + (ex_sox_l * sox_conversion * fuel_consumption))  / 1000000) %>% 
-  select(-tyre_pm25_km, -tyre_pm10_km, -brake_pm25_km, -brake_pm10_km, -ex_pm10_l, -road_wear_pm10_km, 
-         -road_wear_pm25_km, -ex_nox_l, -ex_sox_l, -ex_voc_l)
+  mutate(pollutant_total = case_when(
+    pollutant %in% c("ex_pm10_l", "ex_pm25_l", "ex_sox_l", "ex_voc_l", "ex_nox_l",
+                     "secon_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
+    pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", 
+                     "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km") ~ pollutant_rate * vkt / 1000000),
+    
+    #these names are broad categories designed to be consistent with the BITRE damage cost estimates
+    #so we can join them shortly (and are also just helpful categories)
+    pollutant_cat = case_when(
+      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_pm25") ~ "pm2_5_combustion",
+      pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km") ~ "pm10_nonexhaust",
+      pollutant == "ex_pm10_l" ~ "pm10_secondary",
+      pollutant == "ex_nox_l" ~ "nox",
+      pollutant == "ex_sox_l" ~ "sox",
+        pollutant =="ex_voc_l" ~ "hc_voc"),
+    
+    pollutant_cat2 = case_when(
+      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_pm25") ~ "pm25",
+      pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", "ex_pm10_l") ~ "pm10",
+      pollutant == "ex_nox_l" ~ "nox",
+      pollutant %in% c("ex_sox_l", "ex_voc_l") ~ "other"))
 
+#Checking haven't missed any categories
+#policy_scenarios %>% 
+#  filter(is.na(pollutant_cat))
 
 
 pm_nox <- policy_scenarios %>% 
   filter(scenario %in% c("Euro 6 (2024)",
                          "baseline",
                          "Electric and Euro 6 (2024)")) %>% 
-  group_by(vkt_scenario, fleet_year, scenario) %>% 
-  summarise(total_nox_t = sum(ex_nox),
-            total_pm25_t = sum((non_ex_pm25 + ex_pm25 + secon_pm25))) %>% 
-  filter(vkt_scenario == "vkt_upper") %>% 
-  rename("NOx emissions" = total_nox_t,
-         "PM25 emissions" = total_pm25_t) %>% 
-  pivot_longer(cols = (4:5),
-               names_to = "pollutant",
-               values_to = "value") %>% 
+  group_by(vkt_scenario, fleet_year, scenario, pollutant_cat) %>% 
+  summarise(pollutant_total = sum(pollutant_total)) %>% 
+  filter(vkt_scenario == "vkt_central") %>% 
   mutate(scenario = factor(scenario, levels = names(scenario_vals))) %>% 
   
   ggplot(aes(x = fleet_year, 
-             y = value / 1000,
+             y = pollutant_total / 1000,
              colour = scenario)) +
   geom_line() +
-  theme_grattan() +
+  theme_grattan(legend = "top") +
   grattan_colour_manual() +
   scale_y_continuous_grattan(limits = c(0, NA)) +
   scale_x_continuous_grattan(limits = c(2020, 2040),
                              breaks = c(2020, 2030, 2040)) +
   scale_colour_manual(values = scenario_vals) +
-  facet_wrap(~pollutant,
+  facet_wrap(~pollutant_cat,
              scales = "free_y") +
   
   labs(title = "The introduction of Euro VI will considerably reduce exhaust pollution from HDVs",
@@ -261,7 +283,7 @@ pm_nox
 
 # All damage costs are in $ / tonne pollutant in 2016 Aud
 
-damage_costs <- read_xlsx("data/BITRE-damage-costs.xlsx",
+damage_costs <- read_xlsx("data-raw/BITRE-damage-costs.xlsx",
                           sheet = "r-input") %>% 
   clean_names() %>% 
   pivot_longer(cols = (2:15),
@@ -277,7 +299,8 @@ damage_costs <- read_xlsx("data/BITRE-damage-costs.xlsx",
   select(pollutant, region, year, cost_2016_au) %>% 
   mutate(cost_2016_au = cost_2016_au * 1.0646) %>% 
   rename("damage_cost_t" = cost_2016_au,
-         "fleet_year" = year)
+         "fleet_year" = year,
+         "pollutant_cat" = pollutant)
 
 write_rds(damage_costs, "data/damage-costs.rds")
 
@@ -285,45 +308,19 @@ write_rds(damage_costs, "data/damage-costs.rds")
 
 policy_outcomes <- left_join(policy_scenarios,
                               
-                                  damage_costs %>%
-                                    mutate(pollutant = str_c(pollutant, "_cost")) %>% 
-                                    pivot_wider(names_from = pollutant,
-                                                values_from = damage_cost_t))
+                             damage_costs)
+
 
 write_rds(policy_outcomes, "data/policy_outcomes.rds")
 
+
 health_costs <- policy_outcomes %>%
-  group_by(vkt_scenario, fleet_year, fuel_class, age, region, scenario) %>% 
+  group_by(vkt_scenario, fleet_year, fuel_class, age, region, scenario, pollutant_cat2) %>% 
   #assuming 95% of pm10 is pm2.5 for the moment
   #calculating costs - the / 1000000 is to convert from g to tonnes
-  summarise(ex_pm10 = ex_pm10 * pm10_secondary_cost,
-            ex_pm25 = ex_pm25 * pm2_5_combustion_cost,
-            ex_sox = ex_sox * sox_cost,
-            ex_voc = ex_voc * hc_voc_cost, 
-            ex_nox = ex_nox * nox_cost, 
-            non_ex_pm10 = non_ex_pm10 * pm10_nonexhaust_cost, 
-            non_ex_pm25 = non_ex_pm25 * pm2_5_combustion_cost, 
-            secon_pm25 = secon_pm25 * pm2_5_combustion_cost,
-            total = sum(total)) %>% 
-  pivot_longer(cols = (7:14),
-               names_to = "pollutant",
-               values_to = "total_cost") %>% 
-  mutate(pollutant_class = case_when(
-    pollutant %in% c("ex_pm10", "non_ex_pm10") ~ "pm10",
-    pollutant %in% c("ex_pm25", "non_ex_pm25", "secon_pm25") ~ "pm25",
-    pollutant == "ex_sox" ~ "sox",
-    pollutant == "ex_nox" ~ "nox",
-    pollutant == "ex_voc" ~ "voc"))
-
+  summarise(health_cost_total = sum(pollutant_total * damage_cost_t))
 
 write_rds(health_costs, "data/health_costs.rds")
-
-
-# Currently this does not include secondary pollutants. 
-# This paper: https://www.researchgate.net/publication/261404252_Evaluation_of_the_SO2_and_NOX_offset_ratio_method_to_account_for_secondary_PM25_formation
-# outlines a basic method for estimating secondary pollutants but it gives crazy numbers
-# and probably isn't really applicable in this situation anyway. 
-
 
 # Previous studies (ie.e https://www.epa.nsw.gov.au/~/media/EPA/Corporate%20Site/resources/air/HealthPartEmiss.ashx)
 # have excluded secondary costs because of this uncertainty - that is probably the approach we should take here 
@@ -337,7 +334,7 @@ costs_bar <- health_costs %>%
                          "baseline",
                          "Electric and Euro 6 (2024)")) %>% 
   group_by(scenario, vkt_scenario, fleet_year) %>% 
-  summarise(total_cost = sum(total_cost)) %>% 
+  summarise(total_cost = sum(health_cost_total)) %>% 
   pivot_wider(values_from = total_cost,
               names_from = vkt_scenario) %>% 
   mutate(scenario = factor(scenario, levels = names(scenario_vals))) %>% 
@@ -370,7 +367,7 @@ costs_dots <- health_costs %>%
                          "baseline")) %>% 
   #"Electric and Euro 6 (2024)")) %>% 
   group_by(scenario, vkt_scenario, fleet_year) %>% 
-  summarise(total_cost = sum(total_cost)) %>% 
+  summarise(total_cost = sum(health_cost_total)) %>% 
   pivot_wider(values_from = total_cost,
               names_from = vkt_scenario) %>% 
   mutate(scenario = factor(scenario, levels = names(scenario_vals))) %>% 

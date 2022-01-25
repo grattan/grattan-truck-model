@@ -11,7 +11,7 @@ source("R/00-data-inputs.R")
 # First trying to get an estimate of the km travelled by age 
 
 # note that the units for this sheet are in millions initially (but we convert them)
-vkt_total <- read_csv("data/tablebuilder/mvus-2018-vkt-age-totals.csv",
+vkt_total <- read_csv("data-raw/tablebuilder/mvus-2018-vkt-age-totals.csv",
          skip = 6 ) %>% 
   clean_names() %>% 
   filter(!is.na(count)) %>% 
@@ -24,7 +24,7 @@ vkt_total <- read_csv("data/tablebuilder/mvus-2018-vkt-age-totals.csv",
   
 
 # and the units for this are individual vehicles 
-vech_no <- read_csv("data/tablebuilder/mvus-2018-vech-number-age.csv",
+vech_no <- read_csv("data-raw/tablebuilder/mvus-2018-vech-number-age.csv",
          skip = 6 ) %>% 
   clean_names() %>% 
   rename("no_vehicles" = count) %>% 
@@ -327,11 +327,13 @@ vkt <- bind_rows(
   rename("type" = vehicle_type) %>% 
   mutate(vkt = case_when(
     age == 0 ~ vkt/2,
-    age != 0 ~ vkt))
+    age != 0 ~ vkt)) %>% 
+  #for compatability with model
+  rename("fuel_class" = type)
 
 
 vkt %>% 
-  ggplot(aes(x = age, y = vkt, colour = type)) +
+  ggplot(aes(x = age, y = vkt, colour = fuel_class)) +
   geom_point()
   
 
@@ -343,9 +345,27 @@ write_rds(vkt, "data/vkt.rds")
 
 
 
+#plotting
 
 
+vkt %>% 
+  filter(age > 0) %>% 
+  ggplot(aes(x = age, y = vkt, colour = fuel_class)) +
+  geom_line() +
+  theme_grattan() +
+  scale_y_continuous_grattan(labels = scales::label_number_si()) +
+  scale_x_continuous_grattan(limits = c(0, 30)) +
+  grattan_colour_manual(4) +
+  facet_wrap(~fuel_class, scales = "free_y") + 
+  labs(title = "Newer vehicles travel significantly further than older vehicles",
+       subtitle = "Estimated km travelled per year by vehicle type",
+       caption = "Note: Age 0 vehicles have been excluded from this chart",
+       x = "Vehicle age")
 
+
+#grattan_save("atlas/vkt-vs-age.pdf",
+#             save_pptx = TRUE,
+#             type = "fullslide")
 
 
 

@@ -1,7 +1,7 @@
 
 #' Policy scenarios ===================================================
 all_fleets <- read_rds("data/all_fleets.rds")
-#' 
+
 #' This script takes the baseline BAU case as estimated in the 08-fleet-turnover
 #' script, and applies different policy scenarios to that estimate. 
 
@@ -19,6 +19,7 @@ baseline <- all_fleets %>%
          engine_efficiency = 1)
 
 
+
 #' Euro 6 --------------------------------
 
 #' First we want to duplicate this dataset to create our euro 6 and baseline scenarios
@@ -33,21 +34,29 @@ euro_scenarios <- bind_rows(
   
   baseline %>% 
     mutate(scenario = "Euro 6 (2024)",
-           ex_nox_l = case_when(
-             sales_year >= 2024 ~ ex_nox_l * 0.2,
-             sales_year < 2024 ~ ex_nox_l),
-           ex_pm10_l = case_when(
-             sales_year >= 2024 ~ ex_pm10_l * 0.4,
-             sales_year < 2024 ~ ex_pm10_l)),
+           
+           pollutant_rate = ifelse(
+             pollutant == "ex_nox_l" & sales_year >= 2024, 
+             pollutant_rate * 0.2, 
+             pollutant_rate),
+           
+           pollutant_rate = ifelse(
+             pollutant %in% c("ex_pm10_l", "ex_pm25_l")  & sales_year >= 2024, 
+             pollutant_rate * 0.4, 
+             pollutant_rate)),
   
   baseline %>% 
     mutate(scenario = "Euro 6 (2027)",
-           ex_nox_l = case_when(
-             sales_year >= 2027 ~ ex_nox_l * 0.2,
-             sales_year < 2027 ~ ex_nox_l),
-           ex_pm10_l = case_when(
-             sales_year >= 2027 ~ ex_pm10_l * 0.4,
-             sales_year < 2027 ~ ex_pm10_l))) %>% 
+           pollutant_rate = ifelse(
+             pollutant == "ex_nox_l" & sales_year >= 2027, 
+             pollutant_rate * 0.2, 
+             pollutant_rate),
+           
+           pollutant_rate = ifelse(
+             pollutant %in% c("ex_pm10_l", "ex_pm25_l")  & sales_year >= 2027, 
+             pollutant_rate * 0.4, 
+             pollutant_rate)),
+  ) %>% 
   
   #assuming no tyre or engine improvements
   mutate(tyre_improvement = 1,
@@ -58,7 +67,6 @@ euro_scenarios <- bind_rows(
 #' Electric vehicle targets ==================================================
 
 #' The electric vehicle targets are specified as:
-#' #SHARES TO BE DONE PROPERLY 
     #' Between 2024 and 2028, targets only apply to operators with over XX vehicles in 
     #' their fleet (approximately yy% of rigid trucks and zz% of articulated)
     #' After 2028, targets apply to operators with over XX vehicles (approximately 
@@ -80,16 +88,14 @@ euro_scenarios <- bind_rows(
 #' the overall results (and it is very likely a substantial proportion will be electric.)
 
 
-electric_targets <- read_xlsx("data/electric-uptake.xlsx",
+electric_targets <- read_xlsx("data-raw/electric-uptake.xlsx",
           sheet = "electric-targets") %>% 
   mutate(electric_target = electric_target / 100)
 
 
 
 ev_scenario <- left_join(baseline, 
-                         
-          electric_targets) %>% 
-  
+                         electric_targets) %>% 
   #replacing with 0 if no target applies
   mutate(electric_target = if_else(is.na(electric_target), 0, electric_target),
          share_applied = if_else(is.na(share_applied), 0, share_applied)) %>% 
@@ -106,7 +112,7 @@ ev_scenario <- left_join(baseline,
 #' Combining both euro 6 and electric scenarios 
 
 ev_euro_scenarios <- left_join(euro_scenarios, 
-          electric_targets) %>% 
+                      electric_targets) %>% 
   
   #replacing with 0 if no target applies
   mutate(electric_target = if_else(is.na(electric_target), 0, electric_target),
@@ -138,25 +144,22 @@ source("R/04-fuel-consumption.R")
 
 constant_fuel_cons <- all_fuel_consumption %>% 
   filter(sales_year <= 2021,
-         type != "Non-freight carrying vehicles") %>% 
-  arrange(type, age, sales_year) %>% 
-  group_by(type, age) %>% 
+         fuel_class != "Non-freight carrying vehicles") %>% 
+  arrange(fuel_class, age, sales_year) %>% 
+  group_by(fuel_class, age) %>% 
   complete(sales_year = (2024:2050)) %>% 
-  arrange(type, age, sales_year) %>% 
-  na.locf() %>% 
-  rename("fuel_class" = type)
+  arrange(fuel_class, age, sales_year) %>% 
+  na.locf()
 
 constant_fuel_cons <- bind_rows(
   constant_fuel_cons,
   
   all_fuel_consumption %>% 
-    filter(type == "Non-freight carrying vehicles") %>% 
-    rename("fuel_class" = type),
+    filter(fuel_class == "Non-freight carrying vehicles"),
   
   all_fuel_consumption %>% 
     filter(sales_year %in% (2022:2023)) %>% 
-    rename("fuel_class" = type)) %>% 
-  arrange(fuel_class, age, sales_year)
+  arrange(fuel_class, age, sales_year))
 
 
 engine_fleets <- left_join(
@@ -166,6 +169,8 @@ engine_fleets <- left_join(
   
   constant_fuel_cons) 
   
+
+
 
 #' Engine standards ---------------------
 
@@ -298,8 +303,11 @@ policy_scenarios <- bind_rows(
   engine_only,
   tyre_only,
   engine_and_tyre,
-  engine_tyre_electric
-)
+  engine_tyre_electric)  %>% 
+  #re-ordering variables for ease of use and making neater
+  relocate(scenario, vkt_scenario, fuel_class, fleet_year, sales_year, total, region, age) %>% 
+  select(-share)
+
 
 write_rds(policy_scenarios, "data/policy-scenarios.rds")
 

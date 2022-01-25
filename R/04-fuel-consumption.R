@@ -13,7 +13,7 @@ source("R/00-setup.R")
 
 #' Loading data  --------------------------------------
 
-fuel_data <- read_xlsx("data/year-vs-fuel.xlsx",
+fuel_data <- read_xlsx("data-raw/year-vs-fuel.xlsx",
                        sheet = "all") %>% 
   #filter(type %in% c("Articulated trucks")) %>% 
   clean_names() %>% 
@@ -297,7 +297,11 @@ all_fuel_consumption <- bind_rows(
   buses_fuel,
   rigid_fuel,
   non_freight,
-  other_post_2021)
+  other_post_2021) %>% 
+  #and small changes for compatability with model
+  rename("fuel_class" = type) %>% 
+  mutate(age = as.numeric(age))
+
 
 
 write_rds(all_fuel_consumption,
@@ -305,6 +309,6 @@ write_rds(all_fuel_consumption,
 
 
 all_fuel_consumption %>% 
-  ggplot(aes(x = sales_year, y = diesel_rate_100, colour = type)) +
+  ggplot(aes(x = sales_year, y = diesel_rate_100, colour = fuel_class)) +
   geom_point()
 

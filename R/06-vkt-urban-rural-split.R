@@ -8,7 +8,7 @@ source("R/00-setup.R")
 
 # because we wat to avoid COVID effects, we're also basing this off of 2018 ABS data
 
-urban_rural <- read_xlsx("data/2018-MVUS-area-of-use.xlsx",
+urban_rural <- read_xlsx("data-raw/2018-MVUS-area-of-use.xlsx",
           sheet = "r-input",
           skip = 1) %>% 
   clean_names()
@@ -41,9 +41,7 @@ urban_rural <- urban_rural %>%
                names_to = "region") 
 
 
-
-# there's also no strong evidence to suggest that these fractions change over time
-# or as a vehicle ages, so they will be constant in our analysis. 
-  
+write_rds(urban_rural,
+          "data/urban-rural-split.rds")
 
 

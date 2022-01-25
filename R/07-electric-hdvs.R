@@ -15,7 +15,7 @@
 #' treated separately. Data beyond 2035 is extrapolated from the McKinsey estimates
 
 
-electric_uptake <- read_xlsx("data/electric-uptake.xlsx") %>% 
+electric_uptake <- read_xlsx("data-raw/electric-uptake.xlsx") %>% 
   select(-value) %>% 
   #lagging by 5 years
   mutate(sales_year = sales_year + 5)
@@ -37,7 +37,7 @@ electric_uptake <- bind_rows(
 #'  forecasts and considering government announcements, such as NSW pledge to go 
 #'  electric. It is likely to be a conservative timeline - actual progress may be faster. 
 
-bus_uptake <- read_xlsx("data/electric-uptake.xlsx",
+bus_uptake <- read_xlsx("data-raw/electric-uptake.xlsx",
                         sheet = "buses") %>% 
   select(fuel_class, sales_year, electric_share) 
 
@@ -75,7 +75,9 @@ electric_uptake <- electric_uptake %>%
     fuel_class == "Articulated trucks" ~ articulated_ev,
     fuel_class == "Rigid trucks" ~ rigid_ev,
     fuel_class == "Non-freight carrying trucks" ~ non_freight_ev,
-    fuel_class == "Buses" ~ bus_ev))
+    fuel_class == "Buses" ~ bus_ev)) %>% 
+  #as a proportion / 1 
+  mutate(electric_share = electric_share / 100)
 
 #' We will also assume this is true regardless of the age of the vehicle. (i.e. we 
 #' won't add an age category), and over time (assuming that any gains made to energy consumption

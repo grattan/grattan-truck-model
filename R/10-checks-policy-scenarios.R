@@ -11,44 +11,43 @@ policy_scenarios <- read_rds("data/policy-scenarios.rds")
 # First checking the average NOx/PM emissions in each scenario (av g/L equiv)------
 #' 
 #' 
+pm_nox <- bind_rows(
+    policy_scenarios %>% 
+    filter(vkt_scenario == "vkt_central",
+           fleet_year == 2040,
+           pollutant == "ex_nox_l") %>% 
+    group_by(scenario) %>% 
+    summarise(av_rate = mean((1 - electric_share) * pollutant_rate * total, na.rm = TRUE)) %>% 
+    mutate(pollutant = "nox"),
+    
+    policy_scenarios %>% 
+      filter(vkt_scenario == "vkt_central",
+             fleet_year == 2040,
+             pollutant == "ex_pm25_l") %>%
+      group_by(scenario) %>% 
+      summarise(av_rate = mean((1 - electric_share) * pollutant_rate * total, na.rm = TRUE)) %>% 
+      mutate(pollutant = "pm"))
+    
 
-pm_nox <- policy_scenarios %>% 
-  filter(vkt_scenario == "vkt_central",
-         fleet_year == 2030) %>% 
-  group_by(scenario) %>% 
-  summarise(av_pm = mean((1 - electric_share) * ex_nox_l * total, na.rm = TRUE),
-            av_nox = mean((1 - electric_share) * ex_pm10_l * total, na.rm = TRUE)) 
 
 pm_nox %>% 
   mutate(scenario = factor(scenario,
                     levels = pm_nox %>% 
-                      arrange(av_pm) %>% 
+                      filter(pollutant == "pm") %>% 
+                      arrange(av_rate) %>% 
                       pull(scenario))) %>% 
   
   ggplot(aes(y = scenario,
-             x = av_pm,
+             x = av_rate,
              fill = scenario,
              colour = scenario)) +
   geom_col() +
   theme_grattan() + 
   grattan_fill_manual(10) +
-  grattan_colour_manual(10)
-
-
-pm_nox %>% 
-  mutate(scenario = factor(scenario,
-                           levels = pm_nox %>% 
-                             arrange(av_nox) %>% 
-                             pull(scenario))) %>% 
-  
-  ggplot(aes(y = scenario,
-             x = av_nox,
-             fill = scenario,
-             colour = scenario)) +
-  geom_col() +
-  theme_grattan() + 
-  grattan_fill_manual(10) +
-  grattan_colour_manual(10)
+  grattan_colour_manual(10) +
+  scale_x_continuous_grattan() +
+  facet_wrap(~pollutant,
+             scales = "free")
 
 
 #' Looks good!

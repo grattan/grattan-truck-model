@@ -9,49 +9,49 @@ source("R/00-setup.R")
 
 rego_data <- bind_rows(
 
-  read_csv("data/tablebuilder/final/MVUS-2013-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2013-type-no-registered.csv",
            skip = 9) %>% 
     clean_names() %>% 
     mutate(series = 2013,
            counting = "NA") %>% 
     select(year_of_manufacture, vehicle_type, counting, count, annotations, series),
   
-  read_csv("data/tablebuilder/final/MVUS-2014-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2014-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2014),
   
-  read_csv("data/tablebuilder/final/MVUS-2015-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2015-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2015),
   
-  read_csv("data/tablebuilder/final/MVUS-2016-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2016-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2016),
   
-  read_csv("data/tablebuilder/final/MVUS-2017-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2017-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2017),
   
-  read_csv("data/tablebuilder/final/MVUS-2018-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2018-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2018),
   
-  read_csv("data/tablebuilder/final/MVUS-2019-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2019-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2019),
   
-  read_csv("data/tablebuilder/final/MVUS-2020-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2020-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2020),
   
-  read_csv("data/tablebuilder/final/MVUS-2021-type-no-registered.csv",
+  read_csv("data-raw/tablebuilder/final/MVUS-2021-type-no-registered.csv",
            skip = 6) %>% 
     clean_names() %>% 
     mutate(series = 2021)) %>% 
@@ -148,7 +148,20 @@ attrition %>%
        x = "Vehicle age")
 
 
-write_rds(attrition, "data/attrition.rds")
+# Final changes for compatability with model
+
+survival_curves <- attrition %>% 
+  rename("proportion_surviving" = cumulative_attr,
+         "type" = vehicle_type) %>% 
+  mutate(type = case_when(
+    type == "Buses > 9 seats" ~ "buses",
+    type == "Heavy Rigid Trucks > 4.5t GVM" ~ "heavy_rigid",
+    type == "Light Rigid Trucks up to 4.5t GVM" ~ "light_rigid",
+    type == "Prime Movers" ~ "articulated",
+    type == "Non-freight carrying trucks" ~ "non_freight")) 
+
+
+write_rds(survival_curves, "data/attrition.rds")
 
 
 
