@@ -188,8 +188,6 @@ all_fleets <- left_join(
 # Pollutant emissions -------------------------------------------------
 
 
-source("R/00-setup.R")
-
 #' To get the pollutant estimates, first we're going to assign pollutant emissions 
 #' values to vehicles based on the vehicle type and year of manufacture. The values used 
 #' for exhaust emissions are unpublished BITRE estimates (passed on by David Cosgrove), 

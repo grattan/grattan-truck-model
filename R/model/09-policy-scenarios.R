@@ -140,7 +140,7 @@ ev_euro_scenarios <- left_join(euro_scenarios,
 # applied, this will give the effect that vehicle fuel consumption drops over 2022/2023,
 # only to bounce back to 2021 levels in 2024. But it will work once the engine efficiency is applied
 
-source("R/04-fuel-consumption.R")
+source("R/model-inputs/04-fuel-consumption.R")
 
 constant_fuel_cons <- all_fuel_consumption %>% 
   filter(sales_year <= 2021,

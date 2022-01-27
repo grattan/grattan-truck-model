@@ -371,10 +371,6 @@ write_rds(policy_outcomes, "data/policy_outcomes.rds")
 
 
 
-
-
-
-
 health_costs <- policy_outcomes %>%
   group_by(vkt_scenario, fleet_year, fuel_class, age, region, scenario, pollutant_cat2) %>% 
   #assuming 95% of pm10 is pm2.5 for the moment
