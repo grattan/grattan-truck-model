@@ -206,7 +206,10 @@ policy_scenarios <- bind_rows(
       pollutant == "ex_nox_l", 
       pollutant_rate * nox_conversion,
       pollutant_rate * sox_conversion),
-           pollutant = "secon_pm25")) 
+           pollutant = if_else(
+             pollutant == "ex_nox_l",
+             "secon_nox_pm25",
+             "secon_sox_pm25")))
 
 
 
@@ -216,14 +219,14 @@ policy_scenarios <- policy_scenarios %>%
   #all figures are also converted to tonnes
   mutate(pollutant_total = case_when(
     pollutant %in% c("ex_pm10_l", "ex_pm25_l", "ex_sox_l", "ex_voc_l", "ex_nox_l",
-                     "secon_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
+                     "secon_nox_pm25", "secon_sox_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
     pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", 
                      "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km") ~ total * pollutant_rate * vkt / 1000000),
     
     #these names are broad categories designed to be consistent with the BITRE damage cost estimates
     #so we can join them shortly (and are also just helpful categories)
     pollutant_cat = case_when(
-      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_pm25") ~ "pm2_5_combustion",
+      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_nox_pm25", "secon_sox_pm25") ~ "pm2_5_combustion",
       pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km") ~ "pm10_nonexhaust",
       pollutant == "ex_pm10_l" ~ "pm10_secondary",
       pollutant == "ex_nox_l" ~ "nox",
@@ -231,7 +234,7 @@ policy_scenarios <- policy_scenarios %>%
         pollutant =="ex_voc_l" ~ "hc_voc"),
     
     pollutant_cat2 = case_when(
-      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_pm25") ~ "pm25",
+      pollutant %in% c("ex_pm25_l", "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km", "secon_nox_pm25", "secon_sox_pm25") ~ "pm25",
       pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", "ex_pm10_l") ~ "pm10",
       pollutant == "ex_nox_l" ~ "nox",
       pollutant %in% c("ex_sox_l", "ex_voc_l") ~ "other"))

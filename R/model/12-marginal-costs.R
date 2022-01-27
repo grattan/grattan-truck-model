@@ -148,8 +148,6 @@ rem_life_cost <- policy_outcomes %>%
 non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
 
 
-
-
 non_substitued_discounted %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
   group_by(sales_year, vkt_scenario, fuel_class) %>% 
@@ -165,7 +163,7 @@ non_substitued_discounted %>%
   theme_grattan() +
   grattan_fill_manual(2) +
   scale_y_continuous_grattan(labels = scales::label_dollar(),
-                             limits = c(0, 250000)) +
+                             limits = c(0, 170000)) +
   scale_x_continuous_grattan(limits = c(1980, 2022),
                              breaks = c(1980, 2000, 2020)) +
   grattan_colour_manual(2) +
@@ -191,52 +189,24 @@ non_substitued_discounted %>%
 #first we want to get the values for a euro 3 truck
 
 
-
-
-
-
-
-
-#UP TO HERE ------------------------------------
-
-#SOMETHING IS GOING WRONG WITH THE SUBSTITUTION. All the values are coming out as zero, 
-#which either means it's not substituting properly (and so we are going baselin - baseline and getting zero)
-# or something else whacky altogether. 
-
-#not really sure what's going on. The euro 3 substituted dataset also weirdly has substantially more rows (a hundred thousand or so)
-#than the policy outcomes dataset. This doesn't really make any sense to me. 
-
-#need to work out what on earth is going on!!!!
-
-
-
-
-
 euro_3 <- policy_outcomes %>% 
   ungroup() %>% 
   filter(sales_year == 2003) %>% 
-  select(fuel_class, pollutant, pollutant_rate) %>% 
-  unique()
+  distinct(fuel_class, pollutant, pollutant_rate) %>% 
+  rename("pollutant_rate2" = pollutant_rate) 
 
 
 #and now we are going to replace pre-euro 3 truck pollutant values with these figures,
 #and integrate that back into the overall dataset
 
-euro_3 <- left_join(
-  policy_outcomes %>% 
-    filter(sales_year < 2003) %>% 
-    select(-pollutant_rate),
-  
-  euro_3)
-
-
-
-substituted <- bind_rows(
-  euro_3,
-  
-  policy_outcomes %>% 
-    filter(sales_year >= 2003))
-
+substituted <- left_join(
+  policy_outcomes,
+  euro_3) %>% 
+  mutate(pollutant_rate = if_else(
+    pollutant_rate >= pollutant_rate2,
+    pollutant_rate2, 
+    pollutant_rate2)) %>% 
+  select(-pollutant_rate2)
 
 
 #' Calculating the cost totals for the different fractions with our replaced data
@@ -244,25 +214,28 @@ substituted <- bind_rows(
 substituted <- substituted %>% 
   mutate(pollutant_total = case_when(
     pollutant %in% c("ex_pm10_l", "ex_pm25_l", "ex_sox_l", "ex_voc_l", "ex_nox_l",
-                     "secon_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
+                     "secon_nox_pm25", "secon_sox_pm25") ~ pollutant_rate * fuel_consumption / 1000000,
     pollutant %in% c("tyre_pm10_km", "brake_pm10_km", "road_wear_pm10_km", 
                      "tyre_pm25_km", "brake_pm25_km", "road_wear_pm25_km") ~ total * pollutant_rate * vkt / 1000000)) %>% 
   
-  mutate(health_cost_euro_3 = pollutant_total * damage_cost_t)
+  mutate(health_cost_euro_3 = pollutant_total * damage_cost_t) %>% 
+  select(-health_cost_total)
 
 
 
 # Calculating the remaining health cost after we 'replace' the vehicle with a 
 # Euro 3 equivalent
 
-joined <- inner_join(policy_outcomes,
-                     substituted) %>% 
+substituted <- left_join(policy_outcomes %>% 
+                           select(scenario, vkt_scenario, fuel_class, fleet_year, 
+                                  sales_year, total, region, pollutant,health_cost_total),
+                        substituted) %>% 
   mutate(avoided_health_cost = health_cost_total - health_cost_euro_3)
 
 
 # Now calculating the marginal social benefit per vehicle after replacement
 
-joined <- joined %>% 
+substituted <- substituted %>% 
   ungroup() %>% 
   filter(scenario == "baseline") %>% 
   mutate(marginal_cost = avoided_health_cost / total) %>% 
@@ -276,14 +249,17 @@ joined <- joined %>%
 
 substituted_discounted <- discount(substituted, rate = 0.07)
 
+
+
+
 # Plotting the result -------------
 
 substituted_discounted %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-  group_by(sales_year, vkt_scenario, fuel_class) %>% 
+  filter(vkt_scenario == "vkt_central",
+         fuel_class %in% c("Rigid trucks", "Articulated trucks")) %>% 
+  group_by(sales_year, scenario, vkt_scenario, fuel_class) %>% 
   summarise(marginal_cost = sum(marginal_cost)) %>% 
   
-  filter(vkt_scenario == "vkt_central") %>% 
   ggplot(aes(x = sales_year,
              y = marginal_cost,
              fill = fuel_class)) +
@@ -292,108 +268,21 @@ substituted_discounted %>%
   
   theme_grattan() +
   grattan_fill_manual(2) +
-  scale_y_continuous_grattan(labels = scales::label_dollar(),
-                             limits = c(0, 250000)) +
-  scale_x_continuous_grattan(limits = c(1980, 2022),
-                             breaks = c(1980, 2000, 2020)) +
   grattan_colour_manual(2) +
-  labs(title = "The health damage from trucks is huge",
-       subtitle = "Estimated health cost of vehicles over their remaining lifetime, by sales date (non-substituted)",
-       caption = "A discount rate of 7% is applied. Does not include health damage from re-entrained road dust.",
-       x = "Year of vehicle sale") +
-  
-  facet_wrap(~fuel_class)
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Joining substituted and non-substiuted costs to work out the marginal substituted cost
-
-
-substituted_final <- left_join(non_substitued_discounted,
-          
-          marginal_cost_sub_disc %>% 
-            rename("total_sub_cost" = total_cost,
-                   "marginal_sub_cost" = marginal_cost)) %>% 
-  
-  #and calculating that marginal cost after substitution
-  mutate(total_cost = total_cost - total_sub_cost,
-         marginal_cost = marginal_cost - marginal_sub_cost) %>% 
-  select(-total_sub_cost, -marginal_sub_cost)
-
-
-
-substituted_final %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks"),
-         sales_year <= 2021) %>% 
-  group_by(sales_year, vkt_scenario, fuel_class) %>% 
-  summarise(total_cost = sum(total_cost),
-            marginal_cost = sum(marginal_cost),
-            #selecting the max number of vehicles - i.e. what is around at the 
-            #time of the first fleet year - i.e. 2020
-            total = max(total)) %>% 
-  
-  filter(vkt_scenario == "vkt_central") %>% 
-  ggplot(aes(x = sales_year,
-             y = marginal_cost,
-             fill = fuel_class)) +
-  
-  geom_col(alpha = 0.9) +
-  
-  theme_grattan() +
-  grattan_fill_manual(2) +
-  scale_y_continuous_grattan(labels = scales::label_dollar()) +
+  scale_y_continuous_grattan(labels = scales::label_dollar())+
   scale_x_continuous_grattan(limits = c(1980, 2003),
-                             breaks = c(1980, 1990, 2000)) +
-  grattan_colour_manual(2) +
+                             breaks = c(1980, 2000, 2020)) +
+
   labs(title = "Cash for clunkers could significantly reduce health costs from trucks",
        subtitle = "Estimated avoided health cost per vehicle if bought in a cash for clunkers scheme (substituted)",
        caption = "A discount rate of 7% is applied. Does not include health damage from re-entrained road dust. Assumes that
        any vehicle sold prior to 2003 (pre-Euro III standards) is replaced with a Euro III truck. ",
        x = "Year of vehicle sale") +
   
-  facet_wrap(~fuel_class,
-             scales = "free_y")
+  facet_wrap(~fuel_class, scales = "free_y")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-non_substitued_discounted %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-  group_by(sales_year, vkt_scenario, fuel_class) %>% 
-  summarise(total_cost = sum(total_cost),
-            marginal_cost = sum(marginal_cost),
-            #selecting the max number of vehicles - i.e. what is around at the 
-            #time of the first fleet year - i.e. 2020
-            total = max(total))
-  
 
 
 
