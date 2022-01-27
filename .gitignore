@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+data/health_costs.rds
+data/policy-scenarios.rds
+data/policy_outcomes.rds
