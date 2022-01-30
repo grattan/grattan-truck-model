@@ -13,7 +13,7 @@ read_rds("data/policy_outcomes.rds")
 
 co2_ev_vs_diesel <- policy_outcomes %>% 
 filter(sales_year == 2022,
-       age <= 10,
+       age <= 12,
        vkt_scenario == "vkt_central",
        scenario == "baseline",
        #just selecting a single pollutant to remove duplicates for non-pollutant data
