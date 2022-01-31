@@ -79,7 +79,7 @@ electricity_price <- 0.15
 adblue_price <- 0.55
 
 tco_estimate <- tco_estimate %>% 
-  mutate(fueling_cost = if_else(fuel == "electric",
+  mutate(fuel_cost = if_else(fuel == "electric",
                                 #Electric costs
                                 vkt * ev_consumption * electricity_price,
                                 #diesel costs
@@ -168,7 +168,7 @@ tco_estimate <- tco_estimate %>%
 tco_estimate <- tco_estimate %>% 
   mutate(time_weight_penalty = if_else(
     fuel == "electric",
-    1.015 * 0.03 * (purchase_price + fueling_cost + adblue_cost + maintenance_cost + infrastructure_cost),
+    1.015 * 0.03 * (purchase_price + fuel_cost + adblue_cost + maintenance_cost + infrastructure_cost),
     0))
 
 
@@ -176,7 +176,7 @@ tco_estimate <- tco_estimate %>%
 
 # Adding for the totals
 tco_estimate <- tco_estimate %>% 
-  mutate(total_cost = purchase_price + fueling_cost + adblue_cost + maintenance_cost + infrastructure_cost + time_weight_penalty)
+  mutate(total_cost = purchase_price + fuel_cost + adblue_cost + maintenance_cost + infrastructure_cost + time_weight_penalty)
 
 
 # Plotting the estimates ----------------------------------------------
@@ -187,7 +187,7 @@ cost_colours <- c("social_cost" = grattan_black,
                   "adblue_cost" = grattan_yellow,
                   "maintenance_cost" = grattan_orange,
                   "infrastructure_cost" = grattan_darkorange,
-                  "fueling_cost" = grattan_red,
+                  "fuel_cost" = grattan_red,
                   "purchase_price" = grattan_darkred)
 
 

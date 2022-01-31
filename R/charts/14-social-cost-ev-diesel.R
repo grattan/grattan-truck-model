@@ -1,6 +1,6 @@
 
 
-#Assume over the first 10 years of ownership, and sold in 2022
+#Assume over the first 12 years of ownership, and sold in 2022
 
 electric_pc <- policy_outcomes %>% 
 filter(sales_year > 2021,
@@ -23,6 +23,7 @@ electric_pc <- bind_rows(
   electric_pc %>% 
     mutate(fuel = "electric")) %>% 
   unique()
+
 
 electric_pc <- electric_pc %>% 
   mutate(co2 = case_when(
