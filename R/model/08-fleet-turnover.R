@@ -25,10 +25,10 @@ electric_uptake <- read_rds("data/electric_uptake.rds")
   #' sales_year_start is the first year we consider from
 
 survival_sales <- full_join(survival_curves, sales)
-
 fleet_year_start <- 2020
-fleet_year_end <- 2040
+fleet_year_end <- 2060
 sales_year_start <- 1980
+sales_year_end <- 2040
 
 #'fleet_build_all generates the fleet for a specific year (fleet_year)
 
@@ -58,6 +58,13 @@ fleet_build_all <- function(fleet_year) {
 
 all_fleets <- map_dfr(.x = fleet_year_start:fleet_year_end,
                       .f = fleet_build_all) 
+
+
+# And excluding sales post 2040 (although the vehicles sold pre-2040 are evaluated until 2050
+#to capture the majority of their benefits over their remaining life)
+
+all_fleets <- all_fleets %>% 
+  filter(sales_year <= sales_year_end)
 
 
 #Adding fleet details - VKTs, fuel ---------------------------------------

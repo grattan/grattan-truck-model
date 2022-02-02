@@ -55,7 +55,7 @@ euro_scenarios <- bind_rows(
            pollutant_rate = ifelse(
              pollutant %in% c("ex_pm10_l", "ex_pm25_l")  & sales_year >= 2027, 
              pollutant_rate * 0.4, 
-             pollutant_rate)),
+             pollutant_rate))
   ) %>% 
   
   #assuming no tyre or engine improvements
@@ -147,7 +147,7 @@ constant_fuel_cons <- all_fuel_consumption %>%
          fuel_class != "Non-freight carrying vehicles") %>% 
   arrange(fuel_class, age, sales_year) %>% 
   group_by(fuel_class, age) %>% 
-  complete(sales_year = (2024:2050)) %>% 
+  complete(sales_year = (2024:2060)) %>% 
   arrange(fuel_class, age, sales_year) %>% 
   na.locf()
 
@@ -310,8 +310,6 @@ policy_scenarios <- bind_rows(
 
 
 write_rds(policy_scenarios, "data/policy-scenarios.rds")
-
-
 
 
 

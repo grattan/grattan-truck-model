@@ -170,6 +170,19 @@ linear_fit <- bind_rows(linear_fit,
 upfront_costs <- linear_fit %>% 
   mutate(cost = cost * 1000)
 
+
+# Adding years to 2060 assume constant costs beyond 2050
+
+upfront_costs <- bind_rows(
+  upfront_costs %>% 
+    filter(year > 2040) %>% 
+    mutate(year = year + 10) %>% 
+    group_by(fuel_class, fuel) %>% 
+    mutate(cost = max(cost)),
+  
+  upfront_costs)
+
+
 # Saving data
 write_rds(upfront_costs, "data/upfront_costs.rds")
 

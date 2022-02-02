@@ -1,7 +1,7 @@
 # Vehicle sales 
 
 source("R/00-setup.R")
-source("R/01-vehicle-attrition.R")
+source("R/model-inputs/01-vehicle-attrition.R")
 
 # This script aims to determine an estimate of vehicle sales rates of the past 10 years
 # from ABS data, and then from that to make some estimate of longer term sales trends
@@ -185,7 +185,7 @@ all_fitted <- all_fitted %>%
 # are pre-covid)
 # https://treasury.gov.au/sites/default/files/2021-07/p2021_182464-cd.zip
 
-pop_growth <- read_xlsx("data/IG-report-data.xlsx",
+pop_growth <- read_xlsx("data-raw/IG-report-data.xlsx",
                         sheet = "pop-growth") %>% 
   clean_names() %>% 
   #and because it's in financial year just assuming the earlier year applies
@@ -206,7 +206,7 @@ future_sales <- all_fitted %>%
   summarise(sales = mean(sales)) %>% 
   mutate(sales_year = 2019) %>% 
   group_by(type) %>% 
-  complete(sales_year = 2020:2050) %>% 
+  complete(sales_year = 2020:2060) %>% 
   arrange(type, sales_year) %>% 
   na.locf() 
 

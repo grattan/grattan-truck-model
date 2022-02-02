@@ -190,7 +190,7 @@ buses_p_2021 <- buses_fuel %>%
   filter(sales_year == 2021,
          age == 0) %>% 
   group_by(type) %>% 
-  complete(sales_year = (2022:2050)) %>% 
+  complete(sales_year = (2022:2060)) %>% 
   arrange(sales_year) %>% 
   na.locf() %>% 
   mutate(diesel_rate_100 = case_when(
@@ -232,7 +232,7 @@ rigid_historical <- buses_fuel %>%
 rigid_p_2020 <- rigid_historical %>% 
   filter(sales_year == 2020) %>% 
   group_by(type, age) %>% 
-  complete(sales_year = 2021:2050) %>% 
+  complete(sales_year = 2021:2060) %>% 
   arrange(age, sales_year) %>% 
   na.locf() %>% 
   mutate(diesel_rate_100 = case_when(

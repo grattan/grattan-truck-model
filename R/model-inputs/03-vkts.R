@@ -1,7 +1,6 @@
 # VKT estimates 
 
 source("R/00-setup.R")
-source("R/00-data-inputs.R")
 
 # Data are taken from the ABS MVUS
 

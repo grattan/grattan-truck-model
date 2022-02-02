@@ -5,3 +5,4 @@
 data/health_costs.rds
 data/policy-scenarios.rds
 data/policy_outcomes.rds
+data/all_fleets.rds

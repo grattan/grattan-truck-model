@@ -54,6 +54,11 @@ electric_uptake <- bind_rows(
 #' based on ICCT estimates from Europe (https://theicct.org/sites/default/files/publications/EU-logistics-electrification-fv-202011.pdf)
 #' However, given Australian vehicles tend to be larger and carry heavier loads,
 #' we assume upper bound values for our estimates (this is conservative)
+#' 
+#' Over time, we also assume that consumption values for a given distance drop; following
+#' methodology here: https://theicct.org/wp-content/uploads/2021/11/tco-bets-europe-1-nov21.pdf
+#' We assume a 28\% drop in energy consumption over the 2020-2030 period. After that we assume levels 
+#' are stable (this is a 2.8% drop per year assumed)
 
 #' Values below are reported in kWh/km travelled
 rigid_ev <- 1.2
@@ -77,7 +82,14 @@ electric_uptake <- electric_uptake %>%
     fuel_class == "Non-freight carrying trucks" ~ non_freight_ev,
     fuel_class == "Buses" ~ bus_ev)) %>% 
   #as a proportion / 1 
-  mutate(electric_share = electric_share / 100)
+  mutate(electric_share = electric_share / 100) %>% 
+  #Adding the decrease in energy consumption over time 
+  mutate(ev_consumption = case_when(
+    sales_year <= 2020 ~ ev_consumption,
+    sales_year %in% 2021:2030 ~ ev_consumption - 0.028 * ev_consumption * (sales_year - 2020),
+    sales_year > 2030 ~ ev_consumption * (1 - 0.28)
+  ))
+  
 
 #' We will also assume this is true regardless of the age of the vehicle. (i.e. we 
 #' won't add an age category), and over time (assuming that any gains made to energy consumption

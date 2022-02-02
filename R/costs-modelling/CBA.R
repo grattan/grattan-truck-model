@@ -29,6 +29,16 @@
 policy_outcomes <- read_rds("data/policy_outcomes.rds")
 
 
+# Simplifying down data where we can --------------
+
+ev_scenarios <- policy_outcomes %>% 
+  filter(scenario %in% c("baseline",
+                         "Electric targets",
+                         "Euro 6 (2027)",
+                         "Electric and Euro 6 (2027)")) %>% 
+  #and remove 0 vehicle columns
+  filter(total != 0) 
+
 
 # Separating diesel/electric into separate rows -----------------
   # (this is a slightly painful process)
@@ -36,12 +46,12 @@ policy_outcomes <- read_rds("data/policy_outcomes.rds")
 #First duplicating and binding 
 ev_scenarios <- bind_rows(
   # The electric share
-  policy_outcomes %>% 
+  ev_scenarios %>% 
     mutate(total = total * electric_share,
            fuel = "electric"),
   
   #The diesel share 
-  policy_outcomes %>% 
+  ev_scenarios %>% 
     mutate(total = total * (1 - electric_share),
            fuel = "diesel")) %>% 
   
@@ -69,15 +79,8 @@ ev_scenarios <- bind_rows(
 
 
 # Simplifying down to the data we need for the EV scenarios ---------------
-
+  
 ev_scenarios <- ev_scenarios %>% 
-  filter(scenario %in% c("baseline",
-                         "Euro 6 (2027)",
-                         "Electric targets")) %>% 
-  #and remove 0 vehicle columns
-  filter(total != 0) %>% 
-  
-  
   #Simplifying the dataset down to the key elements, first broken up by region
     #(we are doing in two stages so we don't double count things like VKTs which are 
     #duplicated over rows)
@@ -99,16 +102,21 @@ ev_scenarios <- ev_scenarios %>%
 # Adding upfront cost estimates for EVs -------------------------------------
 
 upfront_vehicle_costs <- read_rds("data/upfront_costs.rds") %>% 
-  rename("sales_year" = year,
-         "purchase_price" = cost) 
+  rename("sales_year" = year) %>% 
+  pivot_wider(names_from = fuel,
+              values_from = cost) %>% 
+  # Adding it as an incremental cost 
+  mutate(incr_cost = electric - diesel,
+         fuel = "electric") %>% 
+  select(-diesel, -electric) %>% 
+  rename("purchase_price" = incr_cost)
 
 
 ev_scenarios <- left_join(ev_scenarios, 
                           upfront_vehicle_costs) %>% 
-  #Assuming there is 'no' upfront cost before EVs are an option (because there 
-  #is no price differential to be counted), and making sure upfront cost only
-  #applied to 0 age vehicles
-  mutate(purchase_price = if_else(is.na(purchase_price) | age != 0, 0, purchase_price))
+  mutate(purchase_price = if_else(is.na(purchase_price) | age != 0, 
+                                  0, 
+                                  purchase_price * total))
 
 
 # Diesel and electricity prices -------------------------------------
@@ -141,12 +149,10 @@ ev_scenarios <- ev_scenarios %>%
                                fuel_consumption * 0.05 * 0.55,
                                0),
          
-         
-      
 
 # Co2 cost -------------------------------------------------------
 # Assuming a social cost of carbon, applied at a rate of $25 to start with (per tonne)
-        co2_social_cost = 25 * co2_t)
+        co2_social_cost = 35 * co2_t)
 
 
 
@@ -158,7 +164,7 @@ ev_scenarios <- ev_scenarios %>%
 #' which estimate that EVs have approximately 25% lower lifetime maintenance costs 
 #' Base maintenance cost estimates are from: https://www.atap.gov.au/parameter-values/road-transport/2-vehicle-operating-cost-voc-components
 #' We assume EV costs are 30% lower, and there is no oil requirement (following ICCT : https://theicct.org/wp-content/uploads/2021/06/ICCT_EV_HDVs_Infrastructure_20190809.pdf
-#' Given there are many types of trucks in each category specified by ATAP, we take reoughyl central estimates
+#' Given there are many types of trucks in each category specified by ATAP, we take roughyl central estimates
 # Oil + lubricant costs are estimated from ICCT, converted from euro. It is assumed that rigid trucks
 # cost for these are 50% of articulated trucks, in line with fuel consumption
 
@@ -203,17 +209,41 @@ ev_scenarios <- left_join(ev_scenarios,
 #' In reality it's probably reasonable to shift the costs to medium volumes by 2027 or so (assuming uptake around 
 #' 2-10% of new sales); but we will do this in the CBA model based on the share of trucks 
 
+
+#(might need to convert this to a dataset and a join to speed up processing, 
+#currently very very slow/struggles)
+
 us_aus_conversion <- 1.42
 
-ev_scenarios <- ev_scenarios %>% 
-  mutate(infrastructure_cost = case_when(
-    fuel == "electric" & age == 0 & fuel_class == "Articulated trucks" ~ 180000 * us_aus_conversion,
-    fuel == "electric" & age == 0 & fuel_class == "Rigid trucks" ~ 82000 * us_aus_conversion,
-    fuel == "electric" & age == 0 & fuel_class == "Non-freight carrying trucks" ~ 82000 * us_aus_conversion,
-    fuel == "electric" & age == 0 & fuel_class == "Buses" ~ 82000 * us_aus_conversion,
-    # Assume buses and non-freight have same costs as rigid
-    fuel == "electric" & age != 0 ~ 0,
-    fuel != "electric" ~ 0))
+
+infrastructure_costs <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class,                      ~infrastructure_cost,
+                                 "electric",    0,        "low",      "Articulated trucks",            180000 * us_aus_conversion,
+                                 "electric",    0,        "medium",   "Articulated trucks",            113000 * us_aus_conversion,
+                                 "electric",    0,        "high",     "Articulated trucks",            70000 * us_aus_conversion,
+                                 "electric",    0,        "low",      "Rigid trucks",                  82000 * us_aus_conversion,
+                                 "electric",    0,        "medium",   "Rigid trucks",                  40000 * us_aus_conversion,
+                                 "electric",    0,        "high",     "Rigid trucks",                  27000 * us_aus_conversion,
+                                 "electric",    0,        "low",      "Non-freight carrying trucks",   82000 * us_aus_conversion,
+                                 "electric",    0,        "medium",   "Non-freight carrying trucks",   40000 * us_aus_conversion,
+                                 "electric",    0,        "high",     "Non-freight carrying trucks",   27000 * us_aus_conversion,
+                                 "electric",    0,        "low",      "Buses",                         82000 * us_aus_conversion,
+                                 "electric",    0,        "medium",   "Buses",                         40000 * us_aus_conversion,
+                                 "electric",    0,        "high",     "Buses",                         27000 * us_aus_conversion,)
+
+
+ev_scenarios <- left_join(
+    ev_scenarios %>% 
+      mutate(volume = case_when(
+        fleet_year < 2030 ~ "low",
+        fleet_year < 2035 ~ "medium",
+        fleet_year >= 2035 ~ "high")),
+    
+    infrastructure_costs) %>% 
+  
+  # Multiplying by total to get total costs 
+  mutate(infrastructure_cost = if_else(is.na(infrastructure_cost), 
+                                             0,
+                                             total * infrastructure_cost))
 
 
 
@@ -232,7 +262,7 @@ ev_scenarios <- ev_scenarios %>%
 ev_scenarios <- ev_scenarios %>% 
   mutate(time_weight_penalty = if_else(
     fuel == "electric",
-    1.015 * 0.03 * (purchase_price + fuel_cost + adblue_cost + maintenance_cost + infrastructure_cost),
+    1.015 * 0.03 * (purchase_price + fuel_cost + maintenance_cost_total + infrastructure_cost),
     0))
 
 
@@ -253,23 +283,57 @@ cost_colours <- c("social_cost" = grattan_black,
 
 # Summarising and discounting  ---------------------------------------
 
-ev_summarised <- ev_scenarios %>% 
-  relocate(c(co2_t, fuel_consumption, elec_use_kw), 
-           .before = health_cost_total) %>% 
-  pivot_longer(cols = 15:21,
-               names_to = "cost_type",
-               values_to = "cost") %>% 
+
+# With no changes to Euro scenario --------------------------------
+
+ev_scenarios %>% 
+  mutate(costs = purchase_price + infrastructure_cost + time_weight_penalty,
+         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total) %>% 
+  group_by(scenario, vkt_scenario, fleet_year) %>% 
+  summarise(costs = sum(costs),
+            benefits = sum(benefits)) %>% 
+  filter(scenario %in% c("baseline", "Electric targets")) %>% 
+  pivot_wider(names_from = scenario,
+              values_from = c(costs, benefits)) %>% 
   filter(fleet_year >= 2022) %>% 
+  mutate(costs = `costs_Electric targets` - costs_baseline,
+         benefits = `benefits_Electric targets` - benefits_baseline) %>% 
+  select(vkt_scenario, fleet_year, costs, benefits) %>% 
   
-  #discounting 
-  mutate(discounted_cost = (1 / (1 + 0.04)^(fleet_year - 2022)) * cost) %>% 
+  #Discounting 
+  mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * costs,
+         disc_benefits = (1 / (1 + 0.07)^(fleet_year - 2022)) * benefits) %>% 
+  group_by(vkt_scenario) %>% 
+  summarise(disc_costs = sum(disc_costs) / 1000000000,
+            disc_benefits = sum(disc_benefits) / 1000000000,
+            cba = sum(disc_benefits) / -sum(disc_costs))
 
-  group_by(scenario, vkt_scenario) %>% 
-  # Total in billions
-  summarise(total_cost = sum(cost) / 1000000000,
-            total_disc_cost = sum(discounted_cost / 1000000000)) %>% 
-  filter(vkt_scenario == "vkt_central")
 
+
+
+# Against Euro scenario (2027) --------------------------------------
+
+ev_scenarios %>% 
+  mutate(costs = purchase_price + infrastructure_cost + time_weight_penalty,
+         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total) %>% 
+  group_by(scenario, vkt_scenario, fleet_year) %>% 
+  summarise(costs = sum(costs),
+            benefits = sum(benefits)) %>% 
+  filter(scenario %in% c("Euro 6 (2027)", "Electric and Euro 6 (2027)")) %>% 
+  pivot_wider(names_from = scenario,
+              values_from = c(costs, benefits)) %>% 
+  filter(fleet_year >= 2022) %>% 
+  mutate(costs = `costs_Electric and Euro 6 (2027)` - `costs_Euro 6 (2027)`,
+         benefits = `benefits_Electric and Euro 6 (2027)` - `benefits_Euro 6 (2027)`) %>% 
+  select(vkt_scenario, fleet_year, costs, benefits) %>% 
+  
+  #Discounting 
+  mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * costs,
+         disc_benefits = (1 / (1 + 0.07)^(fleet_year - 2022)) * benefits) %>% 
+  group_by(vkt_scenario) %>% 
+  summarise(disc_costs = sum(disc_costs) / 1000000000,
+            disc_benefits = sum(disc_benefits) / 1000000000,
+            cba = sum(disc_benefits) / -sum(disc_costs))
 
 
 
