@@ -126,7 +126,8 @@ co2_plot <- historical_projection_comb %>%
                          "baseline",
                          "Electric targets",
                          "engine and tyre standards",
-                         "Electric and engine and tyre standards")) %>% 
+                         "Electric and engine and tyre standards"),
+         fleet_year <= 2040) %>% 
   
   mutate(scenario = factor(scenario, levels = names(co2_colours))) %>% 
   
@@ -145,8 +146,8 @@ co2_plot <- historical_projection_comb %>%
   
   theme_grattan() +
   scale_y_continuous_grattan(limits = c(0, 32)) +
-  scale_x_continuous_grattan(limits = c(2000, 2048),
-                             breaks = c(2000, 2020, 2040)) +
+  scale_x_continuous_grattan(limits = c(2000, 2040),
+                             breaks = c(2000, 2020, 2048)) +
   scale_colour_manual(values = co2_colours) +
   scale_fill_manual(values = co2_colours) +
   labs(title = "A combination of vehicle standards and ZEV mandates can bring down HDV emissions",

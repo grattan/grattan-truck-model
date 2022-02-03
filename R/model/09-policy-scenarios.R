@@ -174,19 +174,44 @@ engine_fleets <- left_join(
 
 #' Engine standards ---------------------
 
-# Our engine regulation assumes we can make a 25% improvement to engine efficiency 
-# by 2028. This is very ambitious currently and we need to check if it's realistic. 
+# Our engine regulation assumes we can make a 3% per year (from baseline) improvement to engine efficiency 
+# by 2030, relative to a 2022 Euro V australian baseline engine. 
+
+#' Justification - there is evidence that moving from Euro 5 to Euro 6 along will genertae 5-7\% fuel
+#' efficiency benefits (almost 1/3 - 1/2 of what is required by 2030)
+#' 
+#' International evidence also shows much further benefits available. From a Euro 6 baseline engine in EU,
+#' ICCT estimate that 8.5% as 2020+ estimate, 2020+ waste heat recovery as 11-12% reduction and 15.8-18.1% improvements as a long-term estimate. 
+#' 
+#' Combined with the switch from Euro 5-6 benefit, this gives ~ 15-20% boost. 
+#' (EU study: https://theicct.org/wp-content/uploads/2021/06/EU-HDV-Tech-Potential_ICCT-white-paper_14072017_vF.pdf) 
+#'
+#' US evidence is even more promising:
+#' The phase 1+2 regulations (spanning 2017 to 2027) mandate combined engine improvements of 9-12% depending on vehicle type. 
+#' Combined with Euro 5 - euro 6 boost, this trnaslates to 15-20% improvments. 
+#' (https://theicct.org/publication/u-s-efficiency-and-greenhouse-gas-emission-regulations-for-model-year-2018-2027-heavy-duty-vehicles-engines-and-trailers/ )
+#' 
+#' Other, higher potential have also been put foward: 
+#'  (https://theicct.org/sites/default/files/publications/ICCT_position-brief_HDVenginetech-India_jun2015.pdf)
+#' Indicates a 24% potential reduction. This seems very high, particularly as it is by a 2025 timeframe. 
+#' https://theicct.org/publication/efficiency-technology-potential-for-heavy-duty-diesel-vehicles-in-the-united-states-through-2035/
+#'  By 2035 expected to be 10.8% reduction available relative to phase 2 standards levels (which are considerably higher than where we are)
+
+#' On this evidence we will assume a 3% yearly target reduction from the baseline is acheivable, 
+#' leading to an 18\% improvement to efficiency etween 2024 and 2027 relative to a Euro 5 engine. 
 
 efficiency_targets <- seq(from = 1980, to = 2040) %>% 
   as_tibble() %>% 
   rename(year = "value") %>% 
   mutate(engine_efficiency = case_when(
     year < 2024 ~ 1,
-    year == 2024 ~ 0.95,
-    year == 2025 ~ 0.90,
-    year == 2026 ~ 0.85,
-    year == 2027 ~ 0.80,
-    year >= 2028 ~ 0.75))
+    year == 2024 ~ 0.97,
+    year == 2025 ~ 0.94,
+    year == 2026 ~ 0.91,
+    year == 2027 ~ 0.88,
+    year == 2028 ~ 0.85,
+    year == 2029 ~ 0.82,
+    year >= 2030 ~ 0.79))
 
 # Now creating a dataset for each vehicle type
 # Note that as the efficiency targets do not apply to non-freight carrying vehiles,
@@ -214,8 +239,8 @@ engine_only <- left_join(engine_fleets,
 
 # Tyre standards -------------------------------------
 
-# For tyre standards, we are going to assume that a total of 8% improvement from a 
-# baseline 2020 vehicle are available by 2028, corresponding to 2% improvements per year
+# For tyre standards, we are going to assume that a total of ~10% improvement from a 
+# baseline 2022 vehicle are available by 2030, corresponding to 1.5% improvements per year
 # when starting in 2024
 
 # We are going to assume this is on top of the 0.5% YoY assumption, given those improvements
@@ -227,7 +252,7 @@ tyre_only <- baseline %>%
          engine_efficiency = 1) %>% 
   select(-tyre_improvement)
 
-# Across the fleet we are assuming that between 2024 an 2028 we can get 2% improvements
+# Across the fleet we are assuming that between 2024 an 2028 we can get 1.5% improvements
 # per year to fuel consumption from tyre tech
 
 tyre_targets <- seq(from = 1980, to = 2040) %>% 
@@ -235,11 +260,13 @@ tyre_targets <- seq(from = 1980, to = 2040) %>%
   rename(year = "value") %>% 
   mutate(tyre_improvement = case_when(
     year < 2024 ~ 1,
-    year == 2024 ~ 0.98,
-    year == 2025 ~ 0.96,
-    year == 2026 ~ 0.94,
-    year == 2027 ~ 0.92,
-    year >= 2028 ~ 0.92))
+    year == 2024 ~ 0.985,
+    year == 2025 ~ 0.97,
+    year == 2026 ~ 0.955,
+    year == 2027 ~ 0.94,
+    year == 2028 ~ 0.924,
+    year == 2029 ~ 0.91,
+    year >= 2030 ~ 0.905))
 
 tyre_targets <- crossing(
   tyre_targets,

@@ -148,31 +148,48 @@ rem_life_cost <- policy_outcomes %>%
 non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
 
 
-non_substitued_discounted %>% 
+non_substitued_discounted_p <- non_substitued_discounted %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
   group_by(sales_year, vkt_scenario, fuel_class) %>% 
-  summarise(marginal_cost = sum(marginal_cost)) %>% 
+  summarise(marginal_cost = sum(marginal_cost)) 
 
+non_substitued_discounted_p %>% 
   filter(vkt_scenario == "vkt_central") %>% 
   ggplot(aes(x = sales_year,
-             y = marginal_cost,
+             y = marginal_cost / 1000,
              fill = fuel_class)) +
   
   geom_col(alpha = 0.9) +
   
   theme_grattan() +
-  grattan_fill_manual(2) +
-  scale_y_continuous_grattan(labels = scales::label_dollar(),
-                             limits = c(0, 170000)) +
+  theme(strip.text.y = element_blank()) +
+  grattan_fill_manual(2, rev = TRUE) +
+  scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "K"),
+                             limits = c(0, 190),
+                             breaks = c(0, 50, 100, 150)) +
   scale_x_continuous_grattan(limits = c(1980, 2022),
                              breaks = c(1980, 2000, 2020)) +
-  grattan_colour_manual(2) +
+  
+  grattan_label(data = non_substitued_discounted_p %>% 
+                  filter(sales_year == 1980),
+                
+                aes(label = fuel_class,
+                    colour = fuel_class,
+                    y = 170),
+                fontface = "bold",
+                hjust = "left") +
+
+  grattan_colour_manual(2, rev = TRUE) +
   labs(title = "The health damage from trucks is huge",
        subtitle = "Estimated health cost of vehicles over their remaining lifetime, by sales date (non-substituted)",
        caption = "A discount rate of 7% is applied. Does not include health damage from re-entrained road dust.",
-       x = "Year of vehicle sale") +
+       x = "Year of manufacture") +
   
-  facet_wrap(~fuel_class)
+  facet_grid(rows = vars(fuel_class))
+
+#grattan_save(filename = "atlas/non-subbed-cost.pdf",
+#             type = "wholecolumn",
+#             save_ppt = TRUE)
 
 
 

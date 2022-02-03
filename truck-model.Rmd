@@ -958,7 +958,7 @@ historical_projection_comb %>%
   
   theme_grattan() +
   scale_y_continuous_grattan(limits = c(0, 32)) +
-  scale_x_continuous_grattan(limits = c(2000, 2048),
+  scale_x_continuous_grattan(limits = c(2000, 2040),
                              breaks = c(2000, 2020, 2040)) +
   scale_colour_manual(values = co2_colours) +
   scale_fill_manual(values = co2_colours) +
@@ -1024,7 +1024,38 @@ historical_projection_comb %>%
 
 ## Technology standards 
 
-To be completed - payback period estimates
+Technology standards would impose a mandated average improvement to fuel efficiency, for new vehicle sales. Standards to engine and tyre technology would be applied seperately, with different targets. 
+
+### Engine standards
+
+International evidence suggests that 3\% improvements per year form a baseline Euro 5 2022-era vehicle are achievable between 2024 and 2030. This would provide cumulative benefits of 18\% reduction in fuel consumption and CO2 production by 2030
+
+Australian engines are currently behind international comparisons. While Euro V engines for heavy vehicles are standard in Australia, internationally, Euro VI vehilces are mandated. Euro VI vehicle tend to have fuel consumption rate approximately 5-7\% lower than Euro V vehicles. 
+
+International evidence also suggests substantial further improvements are available. From a Euro VI baseline engine, the ICCT estimate that 8\% reductions in CO2 are available. With waste heat recovery, this is estimated to be 11-12%, and longer term imprvoements are estimated to be 15.8-18.1\%. Combined with the benefit from switching from Euro V to Euro VI, this comfortably exceed 15-20\% in total improvements. (EU study: https://theicct.org/wp-content/uploads/2021/06/EU-HDV-Tech-Potential_ICCT-white-paper_14072017_vF.pdf). There is also substantial evidence put forward by teh ICCT to demonstrate that such improvements are cost effective, with a payback period of under 5 years. 
+
+Evidence from the US is also promising. Between the 2018-2027 period, US engine regulations will mandate a combined engine efficiency improvement of 9-12% depending on vehicle type. This also starts from a baseline engine configuration that is likely to be more efficient than a Euro V era 2022 Australian vehicle (https://theicct.org/publication/u-s-efficiency-and-greenhouse-gas-emission-regulations-for-model-year-2018-2027-heavy-duty-vehicles-engines-and-trailers/). 
+
+Other, higher potential have also been put foward: (https://theicct.org/sites/default/files/publications/ICCT_position-brief_HDVenginetech-India_jun2015.pdf) indicates a 24% potential reduction.(https://theicct.org/publication/efficiency-technology-potential-for-heavy-duty-diesel-vehicles-in-the-united-states-through-2035/)
+
+
+### Tyre standards
+
+Evidence from the European Union suggests that improvements to tyre rolling resistance of about 2-4% per year are feasible over the 2020-2030 timeframe – corresponding to a CO2 reduction of about 7-10% by 2030. (https://theicct.org/sites/default/files/publications/EU-HDV-Tech-Potential_ICCT-white-paper_14072017_vF.pdf) Studies from the US have also estimated similar improvement are available (https://theicct.org/wp-content/uploads/2021/12/efficiency-tech-potential-hdvs-us-2035-nov21.pdf). 
+Further, Australian trucks are currently limited in their ability to use low rolling resistance tyres, such as ultra-wide base next generation tyres. On an articulated truck, the truck industry council of Australia estimates these tyres could yeild an efficiency improvement of ~7\% alone. 
+
+Each of these improvements has been found to have a pay back period of well under 5 years (and in many cases under 1-2 years).
+
+Between 2024 and 2030, it is reasonable to expect that fuel efficiency improvements of 1.5% per year from a baseline 2022 vehicle are achievable -- corresponding to an 11\% reduction in fuel consumption by 2030. 
+
+
+### Technology standard payback period estimates
+
+Using incremental costs estimated by the ICCT for the US and EU and the vehicle fleet model outlines in this document, we estimated potential payback period for the investments required to meet the proposed technology standards. These estimates cover articulated trucks only, given the paucity of data for other segments. 
+
+Both tyre and engine improvements were found to have a payback period of approximately one year. A compliant vehicle sold in 2027 was estimated to have a net financial saving of XXX compared to a business as usual estimate.  
+
+
 
 
 ## Zero emissions targets
@@ -1084,7 +1115,7 @@ The overall CBA results are included below.
 
 At a 7\% discount rate:
 
-``` {r, echo = TRUE, message = FALSE, warning = FALSE}
+``` {r, echo = FALSE, message = FALSE, warning = FALSE}
 
 source("R/costs-modelling/CBA.R")
 
@@ -1116,7 +1147,7 @@ ev_scenarios %>%
 And at a 4\% discount rate:
 
 
-``` {r, echo = TRUE, message = FALSE, warning = FALSE}
+``` {r, echo = FALSE, message = FALSE, warning = FALSE}
 
 source("R/costs-modelling/CBA.R")
 
