@@ -61,42 +61,48 @@ co2_ev_vs_diesel %>%
                        levels = c("EV 2030", "EV 2022", "diesel"))) %>% 
   ggplot(aes(x = co2,
              y = fuel_class,
-             fill = type)) +
+             fill = type,
+             colour = type)) +
   
-  geom_col(size = 2,
-           alpha = 0.95,
-           position = "dodge") +
-  scale_fill_manual(values = c(grattan_lightblue, grattan_darkblue, grattan_red)) +
+  geom_col(alpha = 0.95,
+           position = position_dodge(0.9),
+           width = 0.8) +
+  
   theme_grattan() +
+
   
-  grattan_label(aes(x = 640,
-                    y = "Rigid trucks",
-                    label = "EV (sold in 2022)",
-                    fontface = "bold"),
-                    colour = grattan_darkblue) +  
-  
-  grattan_label(aes(x = 630,
+  grattan_label(aes(x = 570,
                     y = "Rigid trucks",
                     label = "Diesel",
                     fontface = "bold"),
                 colour = grattan_red,
+                hjust = "left",
                 nudge_y = 0.3) +
   
-  grattan_label(aes(x = 400,
+  grattan_label(aes(x = 350,
+                    y = "Rigid trucks",
+                    label = "EV (sold in 2022)",
+                    fontface = "bold"),
+                hjust = "left",
+                colour = grattan_orange) +  
+  
+  grattan_label(aes(x = 100,
                     y = "Rigid trucks",
                     label = "EV (sold in 2030)",
                     fontface = "bold"),
-                colour = grattan_lightblue,
+                colour = grattan_yellow,
+                hjust = "left",
                 nudge_y = -0.3) +
   
-  #grattan_fill_manual(3) +
-  scale_x_continuous_grattan(limits =  c(0, 2000)) +
+  grattan_fill_manual(3) +
+  grattan_colour_manual(3) +
+  scale_x_continuous_grattan(limits =  c(0, 2500)) +
   labs(title = "CO2 emissions from ZE-HDVs are substantially lower than from diesel vehicles",
        subtitle = "Estimated CO2 emissions (lifetime) from diesel and electric trucks",
        x = "CO2 (tonnes)",
        caption = "Grattan analysis") 
   
 
-#grattan_save(type = "normal",
-#             save_ppt = TRUE,
-#             filename = "atlas/co2_ev-vs-diesel.pdf")
+grattan_save(type = "normal",
+             save_ppt = TRUE,
+             filename = "atlas/co2_ev-vs-diesel.pdf")

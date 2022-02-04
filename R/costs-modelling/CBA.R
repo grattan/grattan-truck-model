@@ -267,6 +267,39 @@ ev_scenarios <- ev_scenarios %>%
 
 
 
+# Externality costs from electricity generation (health) -------------------
+
+#' Although zero-emission trucks are cleaner than diesel trucks, electricity generation
+#' can still pose harm to health as it can produce emissions similarly. 
+#' Based on: (https://www.atse.org.au/wp-content/uploads/2019/01/the-hidden-costs-of-electricity.pdf)
+#' we are assuming a health externality cost of:
+  #' $1/MWh for gas
+  #' $3/MH for black coal
+  #' $12/MWh for brown coal 
+#' These estimates are calculated as the difference between the estimates of greenhouse gas externality costs
+#' and total costs (specified as greenhouse gas + health costs)
+#' Based on current power generation: (https://www.aer.gov.au/wholesale-markets/wholesale-statistics/generation-capacity-and-output-by-fuel-source-nem)
+#' We assume 49.3% black coal, 16.9% brown coal, 5.6% gas in the current grid. 
+#' So weighting these three we get externality cost of :
+
+externality_cost_mwh <- 3 * (49.3 / (49.3 + 16.9 + 5.6)) + 
+                        12 * (16.9 / (49.3 + 16.9 + 5.6)) + 
+                        1 * (5.6 / (49.3 + 16.9 + 5.6))
+
+#' We will assume that this cost scales down proportionally with the emissions intensity of the grid, 
+#' which is a proxy for the shares of these emissions intensive generation modes.
+
+base_emission_intensity <- ev_scenarios %>% 
+  filter(fleet_year == 2022) %>% 
+  head(1) %>% 
+  pull(ei_g_wh)
+
+
+ev_scenarios <- ev_scenarios %>% 
+  mutate(health_cost_total = health_cost_total + (elec_use_kw * 0.001 * externality_cost_mwh * (ei_g_wh / base_emission_intensity)) )
+
+
+
 # Playing around with outputs ------------------------------------------
 
 
@@ -337,12 +370,174 @@ ev_scenarios %>%
 
 
 
+# Data for the table in report -- summarised costs and benefits --------------
+
+# First for euro 6 scenario
+
+cba_summary_e_6 <- ev_scenarios %>% 
+  filter(scenario %in% c("Euro 6 (2027)", "Electric and Euro 6 (2027)"),
+         fleet_year >= 2022,
+         vkt_scenario == "vkt_central") %>%  
+  group_by(scenario, vkt_scenario, fleet_year) %>%
+  # Including adblue in maintenance
+  summarise(maintenance_cost_total = sum(maintenance_cost_total) + sum(adblue_cost),
+            purchase_price = sum(purchase_price),
+            fuel_cost = sum(fuel_cost),
+            co2_social_cost = sum(co2_social_cost),
+            infrastructure_cost = sum(infrastructure_cost),
+            time_weight_penalty = sum(time_weight_penalty),
+            health_cost_total = sum(health_cost_total)) %>% 
+  pivot_longer(cols = 4:10,
+               names_to = "cost_type",
+               values_to = "cost") %>% 
+  mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost) %>% 
+  group_by(scenario, cost_type) %>% 
+  summarise(disc_costs = sum(disc_costs)) %>% 
+  
+  pivot_wider(names_from = scenario,
+              values_from = disc_costs) %>% 
+  
+  mutate(avoided_cost_b = (`Euro 6 (2027)` - `Electric and Euro 6 (2027)`) / 1000000000)
+
+
+# Non-euro 6 scenario 
+
+cba_summary_base <- ev_scenarios %>% 
+  filter(scenario %in% c("baseline", "Electric targets"),
+         fleet_year >= 2022,
+         vkt_scenario == "vkt_central") %>%  
+  group_by(scenario, vkt_scenario, fleet_year) %>%
+  # Including adblue in maintenance
+  summarise(maintenance_cost_total = sum(maintenance_cost_total) + sum(adblue_cost),
+            purchase_price = sum(purchase_price),
+            fuel_cost = sum(fuel_cost),
+            co2_social_cost = sum(co2_social_cost),
+            infrastructure_cost = sum(infrastructure_cost),
+            time_weight_penalty = sum(time_weight_penalty),
+            health_cost_total = sum(health_cost_total)) %>% 
+  pivot_longer(cols = 4:10,
+               names_to = "cost_type",
+               values_to = "cost") %>% 
+  mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost) %>% 
+  group_by(scenario, cost_type) %>% 
+  summarise(disc_costs = sum(disc_costs)) %>% 
+  
+  pivot_wider(names_from = scenario,
+              values_from = disc_costs) %>% 
+  
+  mutate(avoided_cost_b = (`baseline` - `Electric targets`) / 1000000000)
+
+
+# Plotting --------------------------------------------
+
+colour_vals <- c("Infrast-\nructure costs" = grattan_grey5,
+                 "Vehicle costs" = grattan_darkred,
+                 "Time + weight penalty" = grattan_red,
+                 "Health costs" = grattan_yellow,
+                 "Abated CO2" = grattan_lightyellow,
+                 "Mainte-\nnance costs" = grattan_lightblue,
+                 "Fuel costs" = grattan_darkblue)
+
+
+# Euro 6
+cba_summary_e_6 %>% 
+  mutate(cost_type = case_when(
+    cost_type == "infrastructure_cost" ~ "Infrast-\nructure costs",
+    cost_type == "purchase_price" ~ "Vehicle costs",
+    cost_type == "time_weight_penalty" ~ "Time + weight penalty",
+    cost_type == "health_cost_total" ~ "Health costs",
+    cost_type == "co2_social_cost" ~ "Abated CO2",
+    cost_type == "maintenance_cost_total" ~ "Mainte-\nnance costs",
+    cost_type == "fuel_cost" ~ "Fuel costs"),
+    cost_type = factor(cost_type, levels = names(colour_vals))) %>% 
+  
+ arrange(cost_type) %>% 
+  mutate(cost_start = lag(cumsum(avoided_cost_b),
+                          default = 0),
+         cost_end = cumsum(avoided_cost_b),
+         xmin = 1,
+         xmin = cumsum(xmin),
+         xmax = xmin + 1) %>%  
+  
+  ggplot() +
+  
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             colour = grattan_grey4) +
+  
+  geom_rect(aes(ymin = cost_start,
+                ymax = cost_end,
+                xmin = xmin - 0.4,
+                xmax = xmax - 0.6,
+                x = cost_type,
+                fill = cost_type,
+                colour = cost_type),
+            alpha = 0.95) +
+  
+  geom_segment(data = . %>% 
+                 filter(cost_type != "Fuel costs"),
+               aes(x = xmin - 0.4,
+                   xend = xmax + 0.4,
+                   yend = cost_end,
+                   y = cost_end)) +
+  
+  theme_grattan() +
+  scale_x_discrete(labels = label_wrap(8)) +
+  scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "b"),
+                             limits = c(-15, 10)) +
+  scale_fill_manual(values = colour_vals) +
+  scale_colour_manual(values = colour_vals) +
+  
+  
+  geom_segment(aes(y = 0, yend = 6.91, x = 6, xend = 6), colour = grattan_grey3) +
+  geom_segment(aes(y = 6.91, yend = 6.91, x = 6, xend = 6.1), colour = grattan_grey3) +
+  geom_segment(aes(y = 0, yend = 0 , x = 6, xend = 6.1), colour = grattan_grey3) +
+  
+  grattan_label(aes(x = 6 - 0.1,
+                    y = 4,
+                    label = "Estimated net \nbenefit of $6.9b"),
+                hjust = "right",
+                fontface = "bold",
+                colour = grattan_grey4) +
+  
+  grattan_label(data = . %>% 
+                  filter(avoided_cost_b < 0),
+                aes(x = cost_type,
+                    y = cost_end - 1.4,
+                    label = paste0("-$", round(abs(avoided_cost_b), digits = 1), "b"),
+                    colour = cost_type)) +
+  grattan_label(data = . %>% 
+                  filter(avoided_cost_b > 0),
+                aes(x = cost_type,
+                    y = cost_end + 1.4,
+                    label = paste0("$", round(abs(avoided_cost_b), digits = 1), "b"),
+                    colour = cost_type)) +
+  
+  
+  labs(title = "The benefits of accelerating zero emission truck uptake outweighs the costs",
+       subtitle = "Estimated costs and benefits of zero emissions targets for heavy vehicles",
+       x = NULL,
+       caption = "Details of CBA metholody are included in appendix XX. Calculated using a 7% discount rate.")
 
 
 
+  
+#grattan_save(filename = "atlas/cba-results.pdf",
+#             type = "normal",
+#             save_pptx = TRUE)
 
-
-
-
+# Non-euro 6 (the health costs savings are significantly larger - \$3-4b vs ~\$ 1b)
+cba_summary_base %>% 
+  mutate(cost_type = factor(cost_type, 
+                            levels = cba_summary_base %>% 
+                              arrange(avoided_cost_b) %>% 
+                              pull(cost_type))) %>% 
+  arrange(cost_type) %>% 
+  mutate(cumulative_cost = cumsum(avoided_cost_b)) %>% 
+  
+  ggplot() +
+  geom_col(aes(x = cost_type,
+               y = avoided_cost_b,
+               fill = cost_type))
 
            
