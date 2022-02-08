@@ -614,7 +614,6 @@ The fraction of cost attributable to each vehicle segment differs considerably. 
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 
-
 policy_outcomes <- read_rds("data/policy_outcomes.rds")
 
 
