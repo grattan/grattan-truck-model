@@ -7,7 +7,7 @@
 
 source("R/model-inputs/01-vehicle-attrition.R")
 
-p1 <- attrition %>% 
+p1_wc <- attrition %>% 
   mutate(vehicle_type = case_when(
     vehicle_type == "Prime Movers" ~ "Articulated",
     vehicle_type == "Buses > 9 seats" ~ "Buses",
@@ -33,11 +33,11 @@ p1 <- attrition %>%
        subtitle = "Proportion of vehicles surviving by age",
        x = "Vehicle age")
 
-p1
+p1_wc
 
 
-grattan_save(filename = "atlas/appendix/p1.pdf",
-             object = p1,
+grattan_save(filename = "atlas/appendix/p1_wc.pdf",
+             object = p1_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -47,7 +47,7 @@ grattan_save(filename = "atlas/appendix/p1.pdf",
 
 source("R/model-inputs/02-vehicle-sales.R")
 
-p2 <- sales %>% 
+p2_wc <- sales %>% 
   filter(sales_year <= 2040) %>% 
   mutate(type = case_when(
     type == "articulated" ~ "Articulated",
@@ -72,12 +72,12 @@ p2 <- sales %>%
   facet_wrap(~type) + 
   labs(title = "Sales of heavy vehicles are forecast to grow in the future",
        subtitle = "Estimated historical and forecast heavy vehicle sales",
-       x = "Year of manufacture")
+       x = NULL)
 
-p2
+p2_wc
 
-grattan_save(filename = "atlas/appendix/p2.pdf",
-             object = p2,
+grattan_save(filename = "atlas/appendix/p2_wc.pdf",
+             object = p2_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -86,7 +86,7 @@ grattan_save(filename = "atlas/appendix/p2.pdf",
 
 source("R/model-inputs/03-vkts.R")
 
-p3 <- vkt %>% 
+p3_wc <- vkt %>% 
   mutate(fuel_class = if_else(fuel_class == "Non-freight carrying trucks",
                  "Non-freight \ncarrying trucks",
                  fuel_class)) %>% 
@@ -105,11 +105,11 @@ p3 <- vkt %>%
        caption = "Note: Age 0 vehicles have been excluded from this chart",
        x = "Vehicle age")
 
-p3
+p3_wc
 
 
-grattan_save(filename = "atlas/appendix/p3.pdf",
-             object = p3,
+grattan_save(filename = "atlas/appendix/p3_wc.pdf",
+             object = p3_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -205,14 +205,14 @@ p4
 grattan_save(filename = "atlas/appendix/p4.pdf",
              object = p4,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "normal")
 
 
 # ZE-HDV sales ------------------------------------------------------
 
 source("R/model-inputs/07-electric-hdvs.R")
 
-p5 <- electric_uptake %>% 
+p5_wc <- electric_uptake %>% 
   mutate(fuel_class = if_else(fuel_class == "Non-freight carrying trucks",
                               "Non-freight \ncarrying trucks",
                               fuel_class)) %>% 
@@ -232,11 +232,11 @@ p5 <- electric_uptake %>%
   facet_wrap(~fuel_class)
 
 
-p5
+p5_wc
 
 
-grattan_save(filename = "atlas/appendix/p5.pdf",
-             object = p5,
+grattan_save(filename = "atlas/appendix/p5_wc.pdf",
+             object = p5_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -422,7 +422,7 @@ p6
 grattan_save(filename = "atlas/appendix/p6.pdf",
              object = p6,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "normal")
 
 
 
@@ -505,7 +505,7 @@ p7
 grattan_save(filename = "atlas/appendix/p7.pdf",
              object = p7,
              save_ppt = FALSE,
-             type = "wholecolumn",
+             type = "normal",
              force_labs = TRUE)
 
 
@@ -553,19 +553,20 @@ p8
 grattan_save(filename = "atlas/appendix/p8.pdf",
              object = p8,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "normal")
 
 
 # Euro VI scenario NOx/PM -------------------------------------------
 
-p9 <- policy_outcomes %>% 
+nox2 <- policy_outcomes %>% 
   group_by(scenario, vkt_scenario, pollutant_cat2, fleet_year) %>% 
   summarise(pollutant_total = sum(pollutant_total)) %>% 
-  filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline")) %>% 
+  filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"),
+         fleet_year <= 2040) %>% 
   mutate(scenario = factor(scenario, levels = c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"))) %>% 
   pivot_wider(names_from = vkt_scenario,
               values_from = pollutant_total) %>% 
-  filter(pollutant_cat2 %in% c("nox", "pm25")) %>% 
+  filter(pollutant_cat2 %in% c("nox")) %>% 
   
   ggplot() + 
   
@@ -574,25 +575,83 @@ p9 <- policy_outcomes %>%
                   ymax = vkt_upper / 1000,
                   fill = scenario),
               colour = NA,
-              alpha = 0.2) +
+              alpha = 0.1) +
   
   geom_line(aes(x = fleet_year,
                 y = vkt_central / 1000,
                 colour = scenario)) +
   
-  theme_grattan(legend = "top") +
+  theme_grattan() +
   grattan_colour_manual(3) +
   grattan_fill_manual(3) +
-  scale_y_continuous_grattan() +
+  scale_y_continuous_grattan(limits = c(0, 150)) +
+  scale_x_continuous_grattan(limits = c(2020, 2042),
+                             breaks = c(2020, 2030, 2040)) +
+  
+  labs(subtitle = "NOx emissions",
+       x = NULL)
+
+
+
+pm2 <- policy_outcomes %>% 
+  group_by(scenario, vkt_scenario, pollutant_cat2, fleet_year) %>% 
+  summarise(pollutant_total = sum(pollutant_total)) %>% 
+  filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"),
+         fleet_year <= 2040) %>% 
+  mutate(scenario = factor(scenario, levels = c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"))) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = pollutant_total) %>% 
+  filter(pollutant_cat2 %in% c("pm25")) %>% 
+  
+  ggplot() + 
+  
+  geom_ribbon(aes(x = fleet_year,
+                  ymin = vkt_lower / 1000,
+                  ymax = vkt_upper / 1000,
+                  fill = scenario),
+              colour = NA,
+              alpha = 0.1) +
+  
+  geom_line(aes(x = fleet_year,
+                y = vkt_central / 1000,
+                colour = scenario)) +
+  
+  geom_text(aes(x = 2040,
+                y = 5.8,
+                label = "Baseline"),
+            colour = grattan_red,
+            fontface = "bold",
+            hjust = "right",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2040,
+                y = 5.4,
+                label = "Euro VI (2024)"),
+            colour = grattan_orange,
+            fontface = "bold",
+            hjust = "right",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2040,
+                 y = 5.0,
+                 label = "Euro VI (2027)"),
+             colour = grattan_yellow,
+             fontface = "bold",
+             hjust = "right",
+            check_overlap = TRUE) +
+  
+  theme_grattan() +
+  grattan_colour_manual(3) +
+  grattan_fill_manual(3) +
+  scale_y_continuous_grattan(limits = c(0, 6)) +
   scale_x_continuous_grattan(limits = c(2020, 2040),
                              breaks = c(2020, 2030, 2040)) +
   
-  facet_wrap(~pollutant_cat2,
-             scales = "free_y") +
-  
-  labs(title = "Euro 6 substantially decreases the pollution emitted from heavy vehicles",
-       subtitle = "NOx and PM2.5 emissions from heavy vehicles (000' tonnes)",
+  labs(subtitle = "PM2.5 emissions",
        x = NULL)
+
+
+p9 <- nox2 + pm2
 
 p9
 
@@ -600,7 +659,8 @@ p9
 grattan_save(filename = "atlas/appendix/p9.pdf",
              object = p9,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             force_labs = TRUE,
+             type = "normal")
 
 
 
@@ -612,6 +672,7 @@ p10 <- policy_outcomes %>%
   group_by(scenario, vkt_scenario, fleet_year) %>% 
   summarise(health_cost_total = sum(health_cost_total)) %>% 
   filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline")) %>% 
+  mutate(scenario = factor(scenario, levels = c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"))) %>% 
   pivot_wider(names_from = vkt_scenario,
               values_from = health_cost_total) %>% 
   
@@ -622,18 +683,42 @@ p10 <- policy_outcomes %>%
                   ymax = vkt_upper / 1000000000,
                   fill = scenario),
               colour = NA,
-              alpha = 0.2) +
+              alpha = 0.15) +
   
   geom_line(aes(x = fleet_year,
                 y = vkt_central / 1000000000,
                 colour = scenario)) +
   
-  theme_grattan(legend = "top") +
+  theme_grattan() +
   grattan_colour_manual(3) +
   grattan_fill_manual(3) +
   scale_y_continuous_grattan(label = scales::label_dollar(suffix = "b")) +
   scale_x_continuous_grattan(limits = c(2020, 2040),
                              breaks = c(2020, 2030, 2040)) +
+  
+  geom_text(aes(x = 2040,
+                y = 2.7,
+                label = "Baseline"),
+            colour = grattan_red,
+            fontface = "bold",
+            hjust = "right",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2040,
+                y = 2.25,
+                label = "Euro VI (2024)"),
+            colour = grattan_orange,
+            fontface = "bold",
+            hjust = "right",
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2040,
+                y = 1.45,
+                label = "Euro VI (2027)"),
+            colour = grattan_yellow,
+            fontface = "bold",
+            hjust = "right",
+            check_overlap = TRUE) +
   
   labs(title = "Euro 6 substantially decreases the health costs from pollution emitted from heavy vehicles",
        subtitle = "NOx and PM2.5 emissions from heavy vehicles ($ billions)",
@@ -646,7 +731,7 @@ p10
 grattan_save(filename = "atlas/appendix/p10.pdf",
              object = p10,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "normal")
 
 
 
@@ -663,7 +748,7 @@ co2_colours <- c("Electric and engine and tyre standards" = grattan_yellow,
                  "historical" = grattan_black)
 
 
-p11 <- historical_projection_comb %>% 
+p11_wc <- historical_projection_comb %>% 
   group_by(scenario, fleet_year, vkt_scenario) %>% 
   summarise(total_co2_mt = sum(total_co2_mt)) %>% 
   pivot_wider(names_from = vkt_scenario,
@@ -686,7 +771,7 @@ p11 <- historical_projection_comb %>%
     ymin = vkt_lower,
     ymax = vkt_upper,
     fill = scenario),
-    alpha= 0.05,
+    alpha = 0.075,
     colour = NA) +
   
   geom_line(aes(linetype = dash)) +
@@ -706,8 +791,7 @@ p11 <- historical_projection_comb %>%
   geom_text(aes(x = 2015,
                 y = 17,
                 label = "Forecast emissions",
-                hjust = 0,
-                size = 11),
+                hjust = 0),
             colour = grattan_darkred,
             fontface = "bold",
             check_overlap = TRUE) +
@@ -715,8 +799,7 @@ p11 <- historical_projection_comb %>%
   geom_text(aes(x = 2011,
                 y = 23.5,
                 label = "Historical",
-                hjust = 0,
-                size = 11),
+                hjust = 0),
             colour = grattan_black,
             fontface = "bold",
             check_overlap = TRUE) +
@@ -724,8 +807,7 @@ p11 <- historical_projection_comb %>%
   geom_text(aes(x = 2015,
                 y = 15,
                 label = "ZEV targets",
-                hjust = 0,
-                size = 11),
+                hjust = 0),
             colour = grattan_red,
             fontface = "bold",
             check_overlap = TRUE)  +
@@ -733,8 +815,7 @@ p11 <- historical_projection_comb %>%
   geom_text(aes(x = 2015,
                 y = 13,
                 label = "Technology standards",
-                hjust = 0,
-                size = 11),
+                hjust = 0),
             colour = grattan_orange,
             fontface = "bold",
             check_overlap = TRUE) +
@@ -742,18 +823,17 @@ p11 <- historical_projection_comb %>%
   geom_text(aes(x = 2015,
                 y = 11,
                 label = "Technology standards + ZEV targets",
-                hjust = 0,
-                size = 11),
+                hjust = 0),
             colour = grattan_yellow,
             fontface = "bold",
             check_overlap = TRUE)
 
 
-p11
+p11_wc
 
 
-grattan_save(filename = "atlas/appendix/p11.pdf",
-             object = p11,
+grattan_save(filename = "atlas/appendix/p11_wc.pdf",
+             object = p11_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -774,7 +854,7 @@ colour_vals <- c("Infrast-\nructure costs" = grattan_grey5,
 
 
 # Euro 6
-p12 <- cba_summary_e_6 %>% 
+p12_wc <- cba_summary_e_6 %>% 
   mutate(cost_type = case_when(
     cost_type == "infrastructure_cost" ~ "Infrast-\nructure costs",
     cost_type == "purchase_price" ~ "Vehicle costs",
@@ -855,11 +935,11 @@ p12 <- cba_summary_e_6 %>%
 
 
 
-p12
+p12_wc
 
 
-grattan_save(filename = "atlas/appendix/p12.pdf",
-             object = p12,
+grattan_save(filename = "atlas/appendix/p12_wc.pdf",
+             object = p12_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -873,7 +953,7 @@ zev_targets <- read_xlsx("data-raw/electric-uptake.xlsx",
                          sheet = "electric-targets")
 
 
-p13 <- zev_targets %>% 
+p13_wc <- zev_targets %>% 
   ggplot(aes(x = sales_year,
              y = electric_target / 100,
              colour = fuel_class)) +
@@ -884,14 +964,19 @@ p13 <- zev_targets %>%
                              breaks = c(0, 0.5, 1)) +
   scale_x_continuous_grattan(limits = c(2023.5, 2040)) +
   
-  grattan_label_repel(data = zev_targets %>% 
-                        group_by(fuel_class) %>% 
-                        slice(2),
-                      aes(label = fuel_class,
-                          x = 2029,
-                          y = electric_target / 100 + 0.6),
-                      fontface = "bold",
-                      hjust = "left") +
+  geom_text(aes(x = 2033,
+                y = 0.65,
+                label = "Rigid trucks"),
+            fontface = "bold",
+            colour = grattan_red,
+            check_overlap = TRUE) +
+  
+  geom_text(aes(x = 2036,
+                y = 0.3,
+                label = "Articulated trucks"),
+            colour = grattan_orange,
+            fontface = "bold",
+            check_overlap = TRUE) +
   
   theme_grattan() +
   grattan_colour_manual(2) +
@@ -900,11 +985,11 @@ p13 <- zev_targets %>%
        x = NULL)
 
 
-p13
+p13_wc
 
 
-grattan_save(filename = "atlas/appendix/p13.pdf",
-             object = p13,
+grattan_save(filename = "atlas/appendix/p13_wc.pdf",
+             object = p13_wc,
              save_ppt = FALSE,
              type = "wholecolumn")
 
@@ -915,23 +1000,18 @@ grattan_save(filename = "atlas/appendix/p13.pdf",
 
 library(pdftools)
 
-df <- tibble(path = NA) 
+# Getting all of the paths 
+paths <- tibble(paths = c("p1_wc", "p2_wc", "p3_wc", "p4", "p5_wc", "p6", "p7", "p8", "p9", "p10", "p11_wc", "p12_wc", "p13_wc")) %>% 
+  mutate(paths = if_else( 
+    str_detect(paths, "wc") == TRUE,
+    paste0("atlas/appendix/", paths, "/", paths, "_wholecolumn.pdf"),
+    paste0("atlas/appendix/", paths, "/", paths, "_normal.pdf")))
 
-# Getting all the paths
-for (i in 1:13) {
-  
-  path <- tibble(path = paste0("atlas/appendix/p", i, "/p", i, "_wholecolumn.pdf"))
-  
-  df <- bind_rows(df, path)
-  
-}
 
 
 # Using the paths to merge all the pdfs 
 
-
-pdf_combine(as_vector(df %>% 
-                        filter(!is.na(path))), output = "atlas/appendix/joined.pdf")
+pdf_combine(as_vector(paths), output = "atlas/appendix/joined.pdf")
 
 
 
