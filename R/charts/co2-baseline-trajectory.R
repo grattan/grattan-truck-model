@@ -140,10 +140,9 @@ co2_all %>%
        subtitle = "Heavy vehicle emissions (Mt)",
        x = NULL)
 
-
-grattan_save(filename = "atlas/co2-forecast.pdf",
-             type = "normal",
-             save_pptx = TRUE)
+#grattan_save(filename = "atlas/co2-forecast-slides.pdf",
+#             type = "all",
+#             save_pptx = TRUE)
 
 
 
