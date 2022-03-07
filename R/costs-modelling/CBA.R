@@ -228,7 +228,9 @@ infrastructure_costs <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_clas
                                  "electric",    0,        "high",     "Non-freight carrying trucks",   27000 * us_aus_conversion,
                                  "electric",    0,        "low",      "Buses",                         82000 * us_aus_conversion,
                                  "electric",    0,        "medium",   "Buses",                         40000 * us_aus_conversion,
-                                 "electric",    0,        "high",     "Buses",                         27000 * us_aus_conversion,)
+                                 "electric",    0,        "high",     "Buses",                         27000 * us_aus_conversion)
+
+
 
 
 ev_scenarios <- left_join(
@@ -300,6 +302,48 @@ ev_scenarios <- ev_scenarios %>%
 
 
 
+
+# Noise costs -------------------------------------------------
+
+#' data from: https://www.atap.gov.au/sites/default/files/documents/pv5-multi-modal-update.pdf (page 38)
+#' These values are significantly higher than past estimate (i.e.)
+#' (https://austroads.com.au/publications/environment/ap-t285-14/media/AP-T285-14_Updating_Environmental_Externalities_Unit_Values.pdf)
+#' For freight:
+#' Urban: \$2.38/'000tkm
+#' Rural: \$0.24/'000tkm
+#' Buses:
+#' Urban: $15.9/'000km (rural NA so assume 0)
+
+#' Based on average loads for the freight MVUS: 5.86 tonnes for rigid av load, and 25.82 tonnes for articulated
+
+#' We're also going to weight km by region as we did previously, assuming:
+source("R/model-inputs/06-vkt-urban-rural-split.R")
+urban_rural
+
+noise_costs <- tribble(~fuel_class,                           ~noise_cost_000_km, #(tonne * cost * metro share) + (tonne * cost * rural share)
+                       "Articulated trucks",                  (25.8 * 8.48 * 0.402) + (25.8 * 0.848 * 0.598),
+                       "Rigid trucks",                        (5.8 * 8.48 * 0.737) + (5.8 * 0.848 * 0.263),
+                       "Non-freight carrying trucks",         (5.8 * 8.48 * 0.697) + (5.8 * 0.848 * 0.321),
+                       "Buses",                               (47.11 * 0.728) + (0.47 * 0.272)) 
+  
+
+
+
+ev_scenarios <- left_join(ev_scenarios, noise_costs) %>% 
+  #Assuming electric is 80% lower in cost from noise pollution
+  mutate(noise_cost_000_km = (electric_share * 0.2 * noise_cost_000_km) + ((1 - electric_share) * noise_cost_000_km),
+         #and calculating total costs
+         noise_cost = vkt / 1000 * noise_cost_000_km * total) %>% 
+  select(-noise_cost_000_km)
+
+
+
+
+
+
+
+
+
 # Playing around with outputs ------------------------------------------
 
 
@@ -321,7 +365,7 @@ cost_colours <- c("social_cost" = grattan_black,
 
 ev_scenarios %>% 
   mutate(costs = purchase_price + infrastructure_cost + time_weight_penalty,
-         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total) %>% 
+         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total + noise_cost) %>% 
   group_by(scenario, vkt_scenario, fleet_year) %>% 
   summarise(costs = sum(costs),
             benefits = sum(benefits)) %>% 
@@ -344,11 +388,14 @@ ev_scenarios %>%
 
 
 
+
+
+
 # Against Euro scenario (2027) --------------------------------------
 
 ev_scenarios %>% 
   mutate(costs = purchase_price + infrastructure_cost + time_weight_penalty,
-         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total) %>% 
+         benefits = health_cost_total + fuel_cost + adblue_cost + co2_social_cost + maintenance_cost_total + noise_cost) %>% 
   group_by(scenario, vkt_scenario, fleet_year) %>% 
   summarise(costs = sum(costs),
             benefits = sum(benefits)) %>% 
@@ -370,6 +417,8 @@ ev_scenarios %>%
 
 
 
+
+
 # Data for the table in report -- summarised costs and benefits --------------
 
 # First for euro 6 scenario
@@ -386,8 +435,9 @@ cba_summary_e_6 <- ev_scenarios %>%
             co2_social_cost = sum(co2_social_cost),
             infrastructure_cost = sum(infrastructure_cost),
             time_weight_penalty = sum(time_weight_penalty),
-            health_cost_total = sum(health_cost_total)) %>% 
-  pivot_longer(cols = 4:10,
+            health_cost_total = sum(health_cost_total),
+            noise_cost = sum(noise_cost)) %>% 
+  pivot_longer(cols = 4:11,
                names_to = "cost_type",
                values_to = "cost") %>% 
   mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost) %>% 
@@ -414,8 +464,9 @@ cba_summary_base <- ev_scenarios %>%
             co2_social_cost = sum(co2_social_cost),
             infrastructure_cost = sum(infrastructure_cost),
             time_weight_penalty = sum(time_weight_penalty),
-            health_cost_total = sum(health_cost_total)) %>% 
-  pivot_longer(cols = 4:10,
+            health_cost_total = sum(health_cost_total),
+            noise_cost = sum(noise_cost)) %>% 
+  pivot_longer(cols = 4:11,
                names_to = "cost_type",
                values_to = "cost") %>% 
   mutate(disc_costs = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost) %>% 
@@ -428,18 +479,24 @@ cba_summary_base <- ev_scenarios %>%
   mutate(avoided_cost_b = (`baseline` - `Electric targets`) / 1000000000)
 
 
+
+
+
+
+
 # Plotting --------------------------------------------
 
 colour_vals <- c("Infrast-\nructure costs" = grattan_grey5,
                  "Vehicle costs" = grattan_darkred,
                  "Time + weight penalty" = grattan_red,
-                 "Health costs" = grattan_yellow,
-                 "Abated CO2" = grattan_lightyellow,
+                 "Health costs" = grattan_orange,
+                 "Abated CO2" = grattan_yellow,
+                 "Noise" = grattan_lightyellow,
                  "Mainte-\nnance costs" = grattan_lightblue,
                  "Fuel costs" = grattan_darkblue)
 
 
-# Euro 6
+# Euro 6 scenario
 cba_summary_e_6 %>% 
   mutate(cost_type = case_when(
     cost_type == "infrastructure_cost" ~ "Infrast-\nructure costs",
@@ -447,6 +504,7 @@ cba_summary_e_6 %>%
     cost_type == "time_weight_penalty" ~ "Time + weight penalty",
     cost_type == "health_cost_total" ~ "Health costs",
     cost_type == "co2_social_cost" ~ "Abated CO2",
+    cost_type == "noise_cost" ~ "Noise",
     cost_type == "maintenance_cost_total" ~ "Mainte-\nnance costs",
     cost_type == "fuel_cost" ~ "Fuel costs"),
     cost_type = factor(cost_type, levels = names(colour_vals))) %>% 
@@ -484,18 +542,18 @@ cba_summary_e_6 %>%
   theme_grattan() +
   scale_x_discrete(labels = label_wrap(8)) +
   scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "b"),
-                             limits = c(-15, 10)) +
+                             limits = c(-15, 12.5)) +
   scale_fill_manual(values = colour_vals) +
   scale_colour_manual(values = colour_vals) +
   
   
-  geom_segment(aes(y = 0, yend = 6.91, x = 6, xend = 6), colour = grattan_grey3) +
-  geom_segment(aes(y = 6.91, yend = 6.91, x = 6, xend = 6.1), colour = grattan_grey3) +
+  geom_segment(aes(y = 0, yend = 8.5, x = 6, xend = 6), colour = grattan_grey3) +
+  geom_segment(aes(y = 8.5, yend = 8.5, x = 6, xend = 6.1), colour = grattan_grey3) +
   geom_segment(aes(y = 0, yend = 0 , x = 6, xend = 6.1), colour = grattan_grey3) +
   
   grattan_label(aes(x = 6 - 0.1,
                     y = 4,
-                    label = "Estimated net \nbenefit of $6.9b"),
+                    label = "Estimated net \nbenefit of $8.5b"),
                 hjust = "right",
                 fontface = "bold",
                 colour = grattan_grey4) +
@@ -528,16 +586,85 @@ cba_summary_e_6 %>%
 
 # Non-euro 6 (the health costs savings are significantly larger - \$3-4b vs ~\$ 1b)
 cba_summary_base %>% 
-  mutate(cost_type = factor(cost_type, 
-                            levels = cba_summary_base %>% 
-                              arrange(avoided_cost_b) %>% 
-                              pull(cost_type))) %>% 
+  mutate(cost_type = case_when(
+    cost_type == "infrastructure_cost" ~ "Infrast-\nructure costs",
+    cost_type == "purchase_price" ~ "Vehicle costs",
+    cost_type == "time_weight_penalty" ~ "Time + weight penalty",
+    cost_type == "health_cost_total" ~ "Health costs",
+    cost_type == "co2_social_cost" ~ "Abated CO2",
+    cost_type == "noise_cost" ~ "Noise",
+    cost_type == "maintenance_cost_total" ~ "Mainte-\nnance costs",
+    cost_type == "fuel_cost" ~ "Fuel costs"),
+    cost_type = factor(cost_type, levels = names(colour_vals))) %>% 
+  
   arrange(cost_type) %>% 
-  mutate(cumulative_cost = cumsum(avoided_cost_b)) %>% 
+  mutate(cost_start = lag(cumsum(avoided_cost_b),
+                          default = 0),
+         cost_end = cumsum(avoided_cost_b),
+         xmin = 1,
+         xmin = cumsum(xmin),
+         xmax = xmin + 1) %>%  
   
   ggplot() +
-  geom_col(aes(x = cost_type,
-               y = avoided_cost_b,
-               fill = cost_type))
+  
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             colour = grattan_grey4) +
+  
+  geom_rect(aes(ymin = cost_start,
+                ymax = cost_end,
+                xmin = xmin - 0.4,
+                xmax = xmax - 0.6,
+                x = cost_type,
+                fill = cost_type,
+                colour = cost_type),
+            alpha = 0.95) +
+  
+  geom_segment(data = . %>% 
+                 filter(cost_type != "Fuel costs"),
+               aes(x = xmin - 0.4,
+                   xend = xmax + 0.4,
+                   yend = cost_end,
+                   y = cost_end)) +
+  
+  theme_grattan() +
+  scale_x_discrete(labels = label_wrap(8)) +
+  scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "b"),
+                             limits = c(-15, 15)) +
+  scale_fill_manual(values = colour_vals) +
+  scale_colour_manual(values = colour_vals) +
+  
+  
+  geom_segment(aes(y = 0, yend = 11.3, x = 6, xend = 6), colour = grattan_grey3) +
+  geom_segment(aes(y = 11.3, yend = 11.3, x = 6, xend = 6.1), colour = grattan_grey3) +
+  geom_segment(aes(y = 0, yend = 0 , x = 6, xend = 6.1), colour = grattan_grey3) +
+  
+  grattan_label(aes(x = 6 - 0.1,
+                    y = 7.5,
+                    label = "Estimated net benefit\nof about $11.5b"),
+                hjust = "right",
+                fontface = "bold",
+                colour = grattan_grey4) +
+  
+  grattan_label(data = . %>% 
+                  filter(avoided_cost_b < 0),
+                aes(x = cost_type,
+                    y = cost_end - 1.4,
+                    label = paste0("-$", round(abs(avoided_cost_b), digits = 1), "b"),
+                    colour = cost_type)) +
+  grattan_label(data = . %>% 
+                  filter(avoided_cost_b > 0),
+                aes(x = cost_type,
+                    y = cost_end + 1.4,
+                    label = paste0("$", round(abs(avoided_cost_b), digits = 1), "b"),
+                    colour = cost_type)) +
+  
+  
+  labs(title = "The benefits of accelerating zero emission truck uptake outweighs the costs",
+       subtitle = "Estimated costs and benefits of zero emissions targets for heavy vehicles",
+       x = NULL,
+       caption = "Details of CBA metholody are included in appendix XX. Calculated using a 7% discount rate.")
+
+
 
            

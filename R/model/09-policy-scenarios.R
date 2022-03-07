@@ -66,24 +66,7 @@ euro_scenarios <- bind_rows(
 
 #' Electric vehicle targets ==================================================
 
-#' The electric vehicle targets are specified as:
-    #' Between 2024 and 2028, targets only apply to operators with over XX vehicles in 
-    #' their fleet (approximately yy% of rigid trucks and zz% of articulated)
-    #' After 2028, targets apply to operators with over XX vehicles (approximately 
-    #' yy% of rigid trucks and zz% of articulated)
-    #' 
-  #' Rigid truck targets are:
-    #' 2% in 2024
-    #' 5% by 2025
-    #' 10% by 2027
-    #' 30% by 2030, 
-    #' 60% by 2035
-  #' Articulated truck targets are:
-    #' 1% by 2024,
-    #' 3% by 2027
-    #' 10% by 2030, 
-  
-#' it is assume that all operators meet their targets with electric vehicles. While 
+#' The electric vehicle targets assume that all operators meet their targets with electric vehicles. While 
 #' this might not be true (some might meet through hydrogen etc.), it's unlikely to affect
 #' the overall results (and it is very likely a substantial proportion will be electric.)
 

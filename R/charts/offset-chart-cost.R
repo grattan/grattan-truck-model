@@ -1,10 +1,97 @@
 
 
 # Abatement cost chart 
+source("R/00-setup.R")
+source("R/model/11-policy-outcomes.R")
 
-source("R/08-fleet-turnover.R")
-source("R/09-policy-scenarios.R")
-source("R/11-policy-outcomes.R")
+
+
+diser <- read_excel("data-raw/diser-co2-forecasts.xlsx") %>% 
+  select(Year, `Articulated trucks`, `Rigid trucks`, `Buses`) %>% 
+  pivot_longer(cols = 2:4,
+               names_to = "fuel_class",
+               values_to = "emissions") %>% 
+  clean_names() %>% 
+  group_by(year) %>% 
+  summarise(emissions = sum(emissions)) %>% 
+  filter( year <= 2021)
+
+
+
+
+proj <- diser %>% 
+  filter(year %in% 2020:2021) %>% 
+  mutate(year = case_when(
+    year == 2020 ~ 2050,
+    year == 2021 ~ 2021))
+
+
+diser_proj <- bind_rows(
+  diser %>% 
+    mutate(scenario = "historical"),
+  
+  proj %>% 
+    mutate(emissions = if_else(
+      year == 2050, 0, emissions),
+      scenario = "zero"),
+  
+  proj %>% 
+    mutate(emissions = if_else(
+      year == 2050, 28, emissions),
+      scenario = "high"),
+  
+  proj %>% 
+    mutate(emissions = if_else(
+      year == 2050, 15, emissions),
+      scenario = "med")) %>% 
+  mutate(line = case_when(
+    scenario == "historical" ~ "a",
+    scenario != "historical" ~ "b"))
+
+
+# Plotting -------------------------------------------------- 
+
+diser_proj %>% 
+  ggplot(aes(x = year,
+              y = emissions,
+              colour = scenario)) +
+  geom_line() +
+  theme_grattan() +
+  scale_colour_manual(values = c(grattan_darkorange, grattan_red, grattan_orange, grattan_yellow)) +
+  scale_y_continuous_grattan(limits = c(0, 30)) +
+  scale_x_continuous_grattan(limits = c(1990, 2060),
+                             breaks = c(1990, 2010, 2030, 2050)) +
+  
+  geom_point(data = . %>% 
+               filter(year == 2050),
+             size = 4) +
+  
+  geom_vline(xintercept = 2021,
+             linetype = "dashed") +
+  
+  geom_text(data = . %>% 
+              filter(year == 2050),
+            aes(x = year + 1,
+                y = emissions,
+                label = paste0("$", emissions * 25, "m")),
+            fontface = "bold",
+            hjust = "left") +
+  
+  labs(x = NULL,
+       title = "Offset costs in 2050 could be substantial without action",
+       subtitle = "Annual emissions from heavy vehicles (Mt)")
+
+grattan_save(type = "wholecolumn",
+             filename = "atlas/offset-chart.pdf",
+             save_ppt = TRUE)
+
+
+
+
+# old code ----------------------------------------------------------
+
+
+
 
 
 
@@ -255,9 +342,9 @@ sectors %>%
 
 
 
-grattan_save(type = "normal",
-             save_pptx = TRUE,
-             filename = "atlas/sector-projections.pdf")
+#grattan_save(type = "normal",
+#             save_pptx = TRUE,
+#             filename = "atlas/sector-projections.pdf")
 
 
 

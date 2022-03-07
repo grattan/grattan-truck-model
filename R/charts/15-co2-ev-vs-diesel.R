@@ -6,7 +6,7 @@
 
 source("R/00-setup.R")
 read_rds("data/policy_outcomes.rds")
-
+policy_outcomes <- read_rds("data/policy_outcomes.rds")
 
 #Creating a dataset with emissions estimates, including a lagged variable of grid intensity
 # for the vehicle purchased in 2030. 
@@ -68,7 +68,7 @@ co2_ev_vs_diesel %>%
            position = position_dodge(0.9),
            width = 0.8) +
   
-  theme_grattan() +
+  theme_grattan(flipped = TRUE) +
 
   
   grattan_label(aes(x = 570,
@@ -94,6 +94,7 @@ co2_ev_vs_diesel %>%
                 hjust = "left",
                 nudge_y = -0.3) +
   
+  scale_y_discrete(label = label_wrap(width = 8)) +
   grattan_fill_manual(3) +
   grattan_colour_manual(3) +
   scale_x_continuous_grattan(limits =  c(0, 2500)) +
