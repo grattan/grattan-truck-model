@@ -8,3 +8,4 @@ data/policy_outcomes.rds
 data/all_fleets.rds
 data/all_fleets.rds
 data/all_fleets.rds
+*.rds
