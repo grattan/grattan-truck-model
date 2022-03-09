@@ -1,0 +1,28 @@
+
+Notes supporting the charts developed for the Grattan truck plan.
+
+All charts developed using the Grattan truck model are included in the `R/charts`
+folder in the Grattan truck model project. This is seperated into two categories:
+charts included in the technical appendix (`R/charts/all-appendix-charts.R`) and those
+included in the main report (`R/report-charts`). 
+
+For charts in the main report, the `R/report-charts` folder contains a series of scripts.
+Each script produces one, or occainsonally two, charts for the final report. However, 
+many of these scripts rely on data or outputs from the main grattan truck model, which is developed
+from the inputs asumptions in `R/model-inputs` and the fleet turnover forecasts and scenarios in `R/model`. 
+Most scripts rely on the main outputs of the model, such as the `policy-outcomes.rds` dataset. 
+
+All the scripts from the report are then collated into a single pdf file. This is done
+in the `R/charts/all-report-charts-export.R` script. To create this single pdf file, all 
+previous charts in the `R/charts/report-charts` folder should be deleted, and the `all-report-charts-export.R`
+script should be run. This should regenerate all charts, saved in the `atlas/report-charts` folder, 
+as well as the master pdf file with all charts, located at `atlas/report-charts/report-charts-joined.pdf`. This file is
+the file imported to overleaf for the report charts. 
+
+Similarly, charts for the technical appendix are saved in the `atlas` file, under the `appendix` subfolder. 
+
+
+
+
+
+
