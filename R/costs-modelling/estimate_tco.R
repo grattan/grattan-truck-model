@@ -52,6 +52,7 @@ policy_outcomes <- read_rds("data/policy_outcomes.rds")
 # Pulling out all the assumptions used as inputs -----------------------------
 
 inflation_13_21 <- 1.15
+euro_aus_conversion <- 1.58
 
 #Maintenance data 
 
@@ -73,6 +74,8 @@ maintenance <- tribble( ~fuel_class,                            ~fuel,          
 
 
 #Infrastructure cost data 
+
+us_aus_conversion <- 1.42
 
 infr_cost_rid_art <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class,                      ~infrastructure_cost,          ~year,
                               "electric",    0,        "low",      "Articulated trucks",            180000 * us_aus_conversion,       2022,

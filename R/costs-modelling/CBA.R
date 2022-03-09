@@ -215,7 +215,6 @@ ev_scenarios <- left_join(ev_scenarios,
 
 us_aus_conversion <- 1.42
 
-
 infrastructure_costs <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class,                      ~infrastructure_cost,
                                  "electric",    0,        "low",      "Articulated trucks",            180000 * us_aus_conversion,
                                  "electric",    0,        "medium",   "Articulated trucks",            113000 * us_aus_conversion,
@@ -229,8 +228,6 @@ infrastructure_costs <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_clas
                                  "electric",    0,        "low",      "Buses",                         82000 * us_aus_conversion,
                                  "electric",    0,        "medium",   "Buses",                         40000 * us_aus_conversion,
                                  "electric",    0,        "high",     "Buses",                         27000 * us_aus_conversion)
-
-
 
 
 ev_scenarios <- left_join(

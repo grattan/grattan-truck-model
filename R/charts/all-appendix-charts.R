@@ -1,6 +1,7 @@
 
 # This script compiles the relevant charts from the analysis for the appendix
 
+library(Cairo)
 
 
 # Attrition chart  ---------------------------------------------
@@ -25,10 +26,11 @@ p1_wc <- attrition %>%
   scale_y_continuous_grattan(limits = c(0, 1),
                              breaks = c(0, 0.5, 1),
                              label = scales::label_percent()) +
-  #geom_smooth() +
-  facet_wrap(~vehicle_type) +
   theme_grattan() +
   grattan_colour_manual() +
+  
+  facet_wrap(~vehicle_type) +
+  
   labs(title= "Vehicle attrition rates by segment",
        subtitle = "Proportion of vehicles surviving by age",
        x = "Vehicle age")
@@ -39,7 +41,8 @@ p1_wc
 grattan_save(filename = "atlas/appendix/p1_wc.pdf",
              object = p1_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 
@@ -79,7 +82,8 @@ p2_wc
 grattan_save(filename = "atlas/appendix/p2_wc.pdf",
              object = p2_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 # VKTs ---------------------------------------------------------
@@ -111,7 +115,8 @@ p3_wc
 grattan_save(filename = "atlas/appendix/p3_wc.pdf",
              object = p3_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 
@@ -205,7 +210,9 @@ p4
 grattan_save(filename = "atlas/appendix/p4.pdf",
              object = p4,
              save_ppt = FALSE,
-             type = "normal")
+             force_labs = TRUE,
+             type = "normal",
+             device = cairo_pdf)
 
 
 # ZE-HDV sales ------------------------------------------------------
@@ -216,13 +223,14 @@ p5_wc <- electric_uptake %>%
   mutate(fuel_class = if_else(fuel_class == "Non-freight carrying trucks",
                               "Non-freight \ncarrying trucks",
                               fuel_class)) %>% 
+  filter(sales_year <= 2040) %>% 
   ggplot(aes(x = sales_year,
              y = electric_share,
              colour = fuel_class)) +
   geom_line() +
   theme_grattan() +
   grattan_colour_manual() +
-  scale_x_continuous_grattan(limits = c(2020, 2040),
+  scale_x_continuous_grattan(limits = c(2020, 2042),
                              breaks = c(2020, 2030, 2040)) +
   scale_y_continuous_grattan(breaks = c(0, 0.5, 1),
                              labels = scales::label_percent()) +
@@ -422,7 +430,8 @@ p6
 grattan_save(filename = "atlas/appendix/p6.pdf",
              object = p6,
              save_ppt = FALSE,
-             type = "normal")
+             type = "normal",
+             device = cairo_pdf)
 
 
 
@@ -506,7 +515,8 @@ grattan_save(filename = "atlas/appendix/p7.pdf",
              object = p7,
              save_ppt = FALSE,
              type = "normal",
-             force_labs = TRUE)
+             force_labs = TRUE,
+             device = cairo_pdf)
 
 
 
@@ -553,7 +563,8 @@ p8
 grattan_save(filename = "atlas/appendix/p8.pdf",
              object = p8,
              save_ppt = FALSE,
-             type = "normal")
+             type = "normal",
+             device = cairo_pdf)
 
 
 # Euro VI scenario NOx/PM -------------------------------------------
@@ -626,7 +637,7 @@ pm2 <- policy_outcomes %>%
   
   geom_text(aes(x = 2040,
                 y = 5.4,
-                label = "Euro VI (2024)"),
+                label = "Euro VI (2027)"),
             colour = grattan_orange,
             fontface = "bold",
             hjust = "right",
@@ -634,7 +645,7 @@ pm2 <- policy_outcomes %>%
   
   geom_text(aes(x = 2040,
                  y = 5.0,
-                 label = "Euro VI (2027)"),
+                 label = "Euro VI (2024)"),
              colour = grattan_yellow,
              fontface = "bold",
              hjust = "right",
@@ -660,7 +671,8 @@ grattan_save(filename = "atlas/appendix/p9.pdf",
              object = p9,
              save_ppt = FALSE,
              force_labs = TRUE,
-             type = "normal")
+             type = "normal",
+             device = cairo_pdf)
 
 
 
@@ -675,6 +687,7 @@ p10 <- policy_outcomes %>%
   mutate(scenario = factor(scenario, levels = c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"))) %>% 
   pivot_wider(names_from = vkt_scenario,
               values_from = health_cost_total) %>% 
+  filter(fleet_year <= 2040) %>% 
   
   ggplot() + 
   
@@ -692,8 +705,9 @@ p10 <- policy_outcomes %>%
   theme_grattan() +
   grattan_colour_manual(3) +
   grattan_fill_manual(3) +
-  scale_y_continuous_grattan(label = scales::label_dollar(suffix = "b")) +
-  scale_x_continuous_grattan(limits = c(2020, 2040),
+  scale_y_continuous_grattan(label = scales::label_dollar(suffix = "b"),
+                             limits = c(0, 4.5)) +
+  scale_x_continuous_grattan(limits = c(2020, 2041),
                              breaks = c(2020, 2030, 2040)) +
   
   geom_text(aes(x = 2040,
@@ -706,7 +720,7 @@ p10 <- policy_outcomes %>%
   
   geom_text(aes(x = 2040,
                 y = 2.25,
-                label = "Euro VI (2024)"),
+                label = "Euro VI (2027)"),
             colour = grattan_orange,
             fontface = "bold",
             hjust = "right",
@@ -714,7 +728,7 @@ p10 <- policy_outcomes %>%
   
   geom_text(aes(x = 2040,
                 y = 1.45,
-                label = "Euro VI (2027)"),
+                label = "Euro VI (2024)"),
             colour = grattan_yellow,
             fontface = "bold",
             hjust = "right",
@@ -731,7 +745,8 @@ p10
 grattan_save(filename = "atlas/appendix/p10.pdf",
              object = p10,
              save_ppt = FALSE,
-             type = "normal")
+             type = "normal",
+             device = cairo_pdf)
 
 
 
@@ -835,7 +850,8 @@ p11_wc
 grattan_save(filename = "atlas/appendix/p11_wc.pdf",
              object = p11_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 
@@ -846,23 +862,27 @@ source("R/costs-modelling/CBA.R")
 
 colour_vals <- c("Infrast-\nructure costs" = grattan_grey5,
                  "Vehicle costs" = grattan_darkred,
-                 "Time + weight penalty" = grattan_red,
-                 "Health costs" = grattan_yellow,
-                 "Abated CO2" = grattan_lightyellow,
-                 "Mainte-\nnance costs" = grattan_lightblue,
-                 "Fuel costs" = grattan_darkblue)
+                 "Time & weight penalty" = grattan_red,
+                 "Avoided\nHealth costs" = grattan_lightorange,
+                 "Avoided\nCO2" = grattan_yellow,
+                 "Reduced\nnoise" = grattan_lightyellow,
+                 "Reduced\nMainte-\nnance costs" = grattan_lightblue,
+                 "Avoided\nfuel costs" = grattan_darkblue)
 
+
+cba_benefit <- cba_summary_e_6$avoided_cost_b %>% sum()
 
 # Euro 6
 p12_wc <- cba_summary_e_6 %>% 
   mutate(cost_type = case_when(
     cost_type == "infrastructure_cost" ~ "Infrast-\nructure costs",
     cost_type == "purchase_price" ~ "Vehicle costs",
-    cost_type == "time_weight_penalty" ~ "Time + weight penalty",
-    cost_type == "health_cost_total" ~ "Health costs",
-    cost_type == "co2_social_cost" ~ "Abated CO2",
-    cost_type == "maintenance_cost_total" ~ "Mainte-\nnance costs",
-    cost_type == "fuel_cost" ~ "Fuel costs"),
+    cost_type == "time_weight_penalty" ~ "Time & weight penalty",
+    cost_type == "health_cost_total" ~ "Avoided\nHealth costs",
+    cost_type == "co2_social_cost" ~ "Avoided\nCO2",
+    cost_type == "noise_cost" ~ "Reduced\nnoise",
+    cost_type == "maintenance_cost_total" ~ "Reduced\nMainte-\nnance costs",
+    cost_type == "fuel_cost" ~ "Avoided\nfuel costs"),
     cost_type = factor(cost_type, levels = names(colour_vals))) %>% 
   
   arrange(cost_type) %>% 
@@ -889,27 +909,28 @@ p12_wc <- cba_summary_e_6 %>%
             alpha = 0.95) +
   
   geom_segment(data = . %>% 
-                 filter(cost_type != "Fuel costs"),
+                 filter(cost_type != "Avoided\nfuel costs"),
                aes(x = xmin - 0.4,
                    xend = xmax + 0.4,
                    yend = cost_end,
                    y = cost_end)) +
   
   theme_grattan() +
+  theme(axis.text.x = element_text(size = 14)) +
   scale_x_discrete(labels = label_wrap(8)) +
   scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "b"),
-                             limits = c(-15, 10)) +
+                             limits = c(-15, 12)) +
   scale_fill_manual(values = colour_vals) +
   scale_colour_manual(values = colour_vals) +
   
   
-  geom_segment(aes(y = 0, yend = 6.91, x = 6, xend = 6), colour = grattan_grey3) +
-  geom_segment(aes(y = 6.91, yend = 6.91, x = 6, xend = 6.1), colour = grattan_grey3) +
-  geom_segment(aes(y = 0, yend = 0 , x = 6, xend = 6.1), colour = grattan_grey3) +
+  geom_segment(aes(y = 0, yend = cba_benefit, x = 7, xend = 7), colour = grattan_grey3) +
+  geom_segment(aes(y = cba_benefit, yend = cba_benefit, x = 7, xend = 7.1), colour = grattan_grey3) +
+  geom_segment(aes(y = 0, yend = 0 , x = 7, xend = 7.1), colour = grattan_grey3) +
   
-  grattan_label(aes(x = 6 - 0.1,
-                    y = 4,
-                    label = "Estimated net \nbenefit of $6.9b"),
+  grattan_label(aes(x = 7 - 0.1,
+                    y = 5,
+                    label = paste0("Estimated net \nbenefit of $", round(cba_benefit, 1), "b")),
                 hjust = "right",
                 fontface = "bold",
                 colour = grattan_grey4) +
@@ -941,7 +962,8 @@ p12_wc
 grattan_save(filename = "atlas/appendix/p12_wc.pdf",
              object = p12_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 
@@ -954,6 +976,7 @@ zev_targets <- read_xlsx("data-raw/electric-uptake.xlsx",
 
 
 p13_wc <- zev_targets %>% 
+  filter(sales_year <= 2040) %>% 
   ggplot(aes(x = sales_year,
              y = electric_target / 100,
              colour = fuel_class)) +
@@ -962,7 +985,7 @@ p13_wc <- zev_targets %>%
   scale_y_continuous_grattan(label = scales::label_percent(),
                              limits = c(0, 1),
                              breaks = c(0, 0.5, 1)) +
-  scale_x_continuous_grattan(limits = c(2023.5, 2040)) +
+  scale_x_continuous_grattan(limits = c(2023.5, 2041)) +
   
   geom_text(aes(x = 2033,
                 y = 0.65,
@@ -991,7 +1014,8 @@ p13_wc
 grattan_save(filename = "atlas/appendix/p13_wc.pdf",
              object = p13_wc,
              save_ppt = FALSE,
-             type = "wholecolumn")
+             type = "wholecolumn",
+             device = cairo_pdf)
 
 
 
