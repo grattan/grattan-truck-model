@@ -1,6 +1,5 @@
 
 
-
 #' Collating all chapter 3 (and some chapter 2) charts for the report 
 #' All these charts are from code within the report-charts folder, and all are saved
 #' into a single pdf file under atlas/report-charts/report-charts-joined in the dropbox
