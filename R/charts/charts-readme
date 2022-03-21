@@ -21,6 +21,23 @@ the file imported to overleaf for the report charts.
 
 Similarly, charts for the technical appendix are saved in the `atlas` file, under the `appendix` subfolder. 
 
+A list the corresponding charts in the report to scripts in the folder is included below (as files under the `R/charts/report-charts` folder):
+
+Chapter 2 charts:
+
+* Figure 2.
+
+Chapter 3 charts: 
+
+* Figure 3.1: co2-baseline-trajectory.R
+* Figure 3.2: offset-chart-cost.R
+* Figure 3.3: emissions-policy-scenarios.R
+* Figure 3.5: tech-regulation-costs.R
+* Figure 3.6: tco-date-estimate.R
+* Figure 3.7: co2-ev-vs-diesel.R
+* Figure 3.8: cba-chart.R
+
+
 
 
 
