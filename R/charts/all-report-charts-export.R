@@ -28,7 +28,7 @@ save_plots <- function(types, data, names) {
                  type = types[i],
                  save_ppt = FALSE,
                  force_labs = TRUE,
-                 #  device = cario_pdf,
+                ## device = cairo_pdf,
                  ignore_long_title = TRUE)
     i <- i + 1
   } 
@@ -37,26 +37,49 @@ save_plots <- function(types, data, names) {
 # Preparing the data for the function
 report_charts <- list(c2_euro_vi_pollution, c2_euro_vi_cost, c2_old_trucks_share, c2_old_trucks_vkt_pmc25,
                       c2_health_costs_per_truck, c3_emissions_forecast, c3_offset_costs, c3_emission_policy_scenarios,
-                      c3_tco_estimate, c3_carbon_ev_diesel, c3_cba_chart)
+                      c3_technology_costs, c3_tco_estimate, c3_carbon_ev_diesel, c3_cba_chart)
 report_chart_names <- c("c2_euro_vi_pollution", "c2_euro_vi_cost", "c2_old_trucks_share", "c2_old_trucks_vkt_pmc25",
                         "c2_health_costs_per_truck", "c3_emissions_forecast", "c3_offset_costs", "c3_emission_policy_scenarios",
-                        "c3_tco_estimate", "c3_carbon_ev_diesel", "c3_cba_chart")
-report_chart_types <- c("wholecolumn", "wholecolumn", "wholecolumn", "wholecolumn",
-                        "wholecolumn", "normal", "wholecolumn", "normal", 
-                        "wholecolumn", "normal", "normal")
+                        "c3_technology_costs", " c3_tco_estimate", "c3_carbon_ev_diesel", "c3_cba_chart")
+report_chart_types_pdf <- c("wholecolumn", "wholecolumn", "wholecolumn", "wholecolumn",
+                            "wholecolumn", "normal", "wholecolumn", "normal", 
+                            "wholecolumn", "normal", "normal", "normal")
 
 # Saving plots using our function
 save_plots(data = report_charts, 
            names = report_chart_names,
-           types = report_chart_types)
+           types = report_chart_types_pdf)
 
 
 # Saving to a single pdf file ---------------------------------------
 
 library(pdftools)
 
-paths <- paste0("atlas/report-charts/", report_chart_names, "/", report_chart_names, "_", report_chart_types, ".pdf")
+paths <- paste0("atlas/report-charts/", report_chart_names, "/", report_chart_names, "_", report_chart_types_pdf, ".pdf")
 
 # Using the paths to merge all the pdfs 
 pdf_combine(as_vector(paths), output = "atlas/report-charts/report-charts-joined.pdf")
+
+
+
+
+# Saving all charts to a .pptx file ----------------------------------
+
+
+grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

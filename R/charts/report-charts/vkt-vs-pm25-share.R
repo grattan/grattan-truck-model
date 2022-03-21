@@ -2,6 +2,9 @@
 # This script plots some charts that illustrate that old vehicle are damaging in 
 # terms of health pollution
 
+source("R/00-setup.R")
+policy_outcomes <- read_rds("data/policy_outcomes.rds")
+
 
 # Collating data ------------------------------------------
 
@@ -118,9 +121,11 @@ c2_old_trucks_vkt_pmc25 <- data_2020_pm25 %>%
   
   facet_grid(rows = vars(name)) +
   
-  labs(title = "Older vehicles are responsible for an outsized share of PM2.5 emissions",
-       subtitle = "Portion of total health costs and kilometres travelled in 2022",
-       x = "Year of manufacture")
+  labs(x = "Year of manufacture")
+  
+  #labs(title = "Older vehicles are responsible for an outsized share of PM2.5 emissions",
+  #     subtitle = "Portion of total health costs and kilometres travelled in 2022",
+  #     x = "Year of manufacture")
 
 
 #grattan_save(filename = "atlas/old-trucks-disproportionate-damage.pdf",

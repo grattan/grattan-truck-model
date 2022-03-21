@@ -1,6 +1,8 @@
 
 # This script produces a chart which describes the age distribution of the Australian heavy vehicle fleet
 
+source("R/00-setup.R")
+
 
 # Loading data from ABS motor vehicle survey
 
@@ -93,11 +95,11 @@ c2_old_trucks_share <- fleet_distribution %>%
                 colour = grattan_red,
                 fontface = "bold") +
   
-  
-  labs(title = "Almost a quarter of the heavy vehicle fleet is over 20 years old",
-       subtitle = "Number of heavy vehicles on register, by year of manufacture",
-       x = "Year of manufacture",
-       caption = "Vehicle are classified based on their age at the time of the survey.")
+  labs(x = "Year of manufacture")
+  #labs(title = "Almost a quarter of the heavy vehicle fleet is over 20 years old",
+    #   subtitle = "Number of heavy vehicles on register, by year of manufacture",
+     #  x = "Year of manufacture",
+    #   caption = "Vehicle are classified based on their age at the time of the survey.")
 
 
 #grattan_save(filename = "atlas/lots-of-old-trucks.pdf",
