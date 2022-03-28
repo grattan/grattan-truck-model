@@ -43,7 +43,7 @@ report_chart_names <- c("c2_euro_vi_pollution", "c2_euro_vi_cost", "c2_old_truck
                         "c3_technology_costs", " c3_tco_estimate", "c3_carbon_ev_diesel", "c3_cba_chart")
 report_chart_types_pdf <- c("wholecolumn", "wholecolumn", "wholecolumn", "wholecolumn",
                             "wholecolumn", "normal", "wholecolumn", "normal", 
-                            "wholecolumn", "normal", "normal", "normal")
+                            "normal", "normal", "normal", "normal")
 
 # Saving plots using our function
 save_plots(data = report_charts, 
@@ -66,7 +66,7 @@ pdf_combine(as_vector(paths), output = "atlas/report-charts/report-charts-joined
 # Saving all charts to a .pptx file ----------------------------------
 
 
-grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
+#grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
 
 
 

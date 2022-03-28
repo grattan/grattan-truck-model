@@ -61,7 +61,8 @@ eu_engine <- tribble(
 
 
 #' For estimates involving both tractors and trailers, the costs are assumed with a 
-#' 1.4 trailer:tractor ratio (consistent with ICCT assumptions)
+#' 1.4 trailer:tractor ratio (consistent with ICCT assumptions), and includes the per vehicle maintenance 
+#' costs listed for tires
 eu_aero <- tribble(
   ~technology,    ~package,                 ~cost_type,          ~cost,      ~perc_potential,
   "Aero",       "Incremental",                 "EU",           335 + 1005*1.4,      0.053,
@@ -70,11 +71,11 @@ eu_aero <- tribble(
   "Aero",       "Long-term",                   "EU",           1673 + 1194*1.4,     0.132) 
 
 eu_tyres <- tribble(
-  ~technology,    ~package,                 ~cost_type,           ~cost,      ~perc_potential,
-  "Tyres",       "Incremental",                 "EU",           113 + 137*1.4,      0.028,
-  "Tyres",       "Moderate",                    "EU",           113 + 172*1.4,      0.058,
-  "Tyres",       "Advanced",                    "EU",           122 + 172*1.4,      0.070,
-  "Tyres",       "Long-term",                   "EU",           141 + 172*1.4,      0.084) 
+  ~technology,    ~package,                 ~cost_type,           ~cost,                       ~perc_potential,
+  "Tyres",       "Incremental",                 "EU",           113 + 137*1.4 + 219 + 267,         0.028,
+  "Tyres",       "Moderate",                    "EU",           113 + 172*1.4 +219 + 334,          0.058,
+  "Tyres",       "Advanced",                    "EU",           122 + 172*1.4 + 238 + 334,         0.070,
+  "Tyres",       "Long-term",                   "EU",           141 + 172*1.4 + 275 + 334,         0.084) 
 
 eu_weight <- tribble(
   ~technology,                   ~package,      ~cost_type,         ~cost,      ~perc_potential,
@@ -122,20 +123,68 @@ all_tech <- all_tech %>%
   mutate(tech_potential_min = min(perc_potential),
          max = max(incr_cost), min = min(incr_cost),
          axis_label = glue("<span style='font-size:17pt;  color:{grattan_black}'> {technology} <br>",
-                           "<span style='font-size:14pt;  color:{col_values[technology]}'> For up to **{round(tech_potential_min * 100, 0)}%**<br>total<br>reduction") %>% 
+                           "<span style='font-size:13pt;  color:{col_values[technology]}'> Cost applicable<br>for up to **{round(tech_potential_min * 100, 0)}%**<br>improvement") %>% 
            fct_reorder(min))
 
 
 
-c3_technology_costs <- all_tech %>% 
-  ggplot() +
+# Plot included in report
+# Plot is "the available improvements (%) for $1000 dollars. upfront" 
 
+c3_technology_costs <- all_tech %>% 
+  mutate(perc_for_1000 = 1000 / incr_cost) %>% 
+  ggplot() +
+  geom_linerange(aes(ymin = 1000 / min, ymax = 1000 / max,
+                     x = axis_label,
+                     colour = technology,
+                     fill = technology),
+                 alpha = 0.2,
+                 size = 10) +
+  
+  geom_point(aes(axis_label, perc_for_1000, colour = technology, shape = cost_type),
+             position = "dodge",
+             size = 4, 
+             stroke = 1.5) +
+  
+  geom_point(aes(x = 0.5, y = 5.5), colour = grattan_grey3, fill = "white", size = 4, stroke = 1.5, shape = 21) +
+  geom_point(aes(x = 0.5, y = 5.2), colour = grattan_grey3,  size = 6, stroke = 1.5, shape = 20) +
+  geom_text(data = . %>% slice(1), 
+            aes(x = 0.65, y = 5.5, label = "EU estimate"), 
+            colour = grattan_grey3, check_overlap = TRUE, hjust = "left", size = 6) +
+  geom_text(data = . %>% slice(1), 
+            aes(x = 0.65, y = 5.2, label = "US estimate"), 
+            colour = grattan_grey3, check_overlap = TRUE, hjust = "left", size = 6) +
+  
+  theme_grattan() +
+  theme(axis.text.x = element_markdown()) +
+  scale_color_manual(values = col_values) +
+  scale_fill_manual(values = col_values) +
+  scale_shape_manual(values = c(21, 20)) + 
+  grattan_y_continuous(labels = label_percent(scale = 1, 
+                                              accuracy =1),
+                      limits = c(0, 6)) +
+  
+  labs(x = NULL) 
+  
+  #labs(x = NULL,
+  #     title = "Engine and tyres provide the most cost effective co2 reduction",
+  #     subtitle = "Per cent CO2 reduction available for $1,000, by technology")
+
+
+
+
+
+# Old plot - as incremental cost ($/% improvement). Not included in report
+
+all_tech %>% 
+  ggplot() +
+  
   geom_linerange(aes(ymin = min, ymax = max,
                      x = axis_label,
                      colour = technology,
                      fill = technology),
-                     alpha = 0.2,
-                     size = 10) +
+                 alpha = 0.2,
+                 size = 10) +
   
   geom_point(aes(axis_label, incr_cost, colour = technology, shape = cost_type),
              position = "dodge",
@@ -152,9 +201,12 @@ c3_technology_costs <- all_tech %>%
   
   labs(x = NULL)
 
-  #labs(x = NULL,
-  #     title = "Engine and tyres provide the most cost effective co2 reduction",
-  #     subtitle = "Cost per per centage improvement to fuel efficiency")
+#labs(x = NULL,
+#     title = "Engine and tyres provide the most cost effective co2 reduction",
+#     subtitle = "Cost per per centage improvement to fuel efficiency")
+
+
+
 
 
 

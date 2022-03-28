@@ -152,9 +152,6 @@ voucher_estimates <- left_join(public_cost_gap, tco_gap) %>%
 #install.packages("gt")
 library(gt)
 
-
-
-
 voucher_estimates %>% gt::gt() %>% gt::as_latex() %>% clipr::write_clip()
 
 

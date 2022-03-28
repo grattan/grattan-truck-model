@@ -301,8 +301,6 @@ engine_tyre_electric <- left_join(engine_and_tyre,
 
 
 
-
-
 #' Joining all scenarios =======================================
 
 policy_scenarios <- bind_rows(

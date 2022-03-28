@@ -256,23 +256,16 @@ all_fleets <- left_join(all_fleets, emissions_factors) %>%
   select(-type, -fuel_type) %>% 
   pivot_longer(cols = 16:26,
                names_to = "pollutant",
-               values_to = "pollutant_rate")
+               values_to = "pollutant_rate") %>% 
+  #now we have removed 'type' variable we should collapse light and heavy rigid types into a single category
+  group_by(sales_year, age, fleet_year, fuel_class, diesel_rate_100, vkt_scenario, vkt, region, share, electric_share, ev_consumption, ei_g_wh, pollutant_class, pollutant_year, pollutant, pollutant_rate) %>% 
+  summarise(total = sum(total)) %>% 
+  ungroup() %>% 
+  relocate(total, .after = age)
+
 
 
 #Saving fleet data 
 
 write_rds(all_fleets, "data/all_fleets.rds")
-
-  
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
 
