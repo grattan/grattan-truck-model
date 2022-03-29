@@ -105,11 +105,11 @@ c3_tco_estimate <- tco_chart %>%
              size = 8) +
   
   geom_richtext(data = . %>% filter(fuel_class == "Rigid trucks") %>% ungroup() %>% slice(1),
-                aes(x = 2024,
+                aes(x = 2023,
                     y = "Rigid trucks",
                     label = glue("<span style= 'font-size:15pt; color:{grattan_grey3}'>We estimate that an average<br>",
                                  "<span style= 'font-size:15pt; color:{grattan_red}'>**rigid truck**",
-                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will reach<br>TCO parity around<br>2026-2030")),
+                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will reach<br>TCO parity around<br>2023-2028")),
                 hjust = "left",
                 lineheight = 1.5,
                 fill = "white", label.color = NA,
@@ -120,7 +120,7 @@ c3_tco_estimate <- tco_chart %>%
                     y = "Articulated trucks",
                     label = glue("<span style= 'font-size:15pt; color:{grattan_grey3}'>And that an average<br>",
                                  "<span style= 'font-size:15pt; color:{grattan_orange}'>**articulated truck**",
-                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will<br>reach TCO parity<br>around 2025-29")),
+                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will<br>reach TCO parity<br>around 2026-30")),
                 hjust = "right",
                 lineheight = 1.5,
                 fill = "white", label.color = NA,

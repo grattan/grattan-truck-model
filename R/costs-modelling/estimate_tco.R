@@ -74,16 +74,21 @@ maintenance <- tribble( ~fuel_class,                            ~fuel,          
 
 
 #Infrastructure cost data 
+# ICCT assume that 'low volume' is 0-1,000 trucks, 'medium volume' is 1,000-10,000, and higher is 10,000 + trucks. 
+# comparing this to our ev sales targets, that corresponds to about:
+#' Rigid trucks: high cost pre 2024, medium 2024 - 2025, and low 2025 onwards
+#' Articulated trucks: high pre 2030, medium 2030-2035 and low beyond that
 
-us_aus_conversion <- 1.42
+
+us_aus_conversion <- 1.40
 
 infr_cost_rid_art <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class,                      ~infrastructure_cost,          ~year,
                               "electric",    0,        "low",      "Articulated trucks",            180000 * us_aus_conversion,       2022,
                               "electric",    0,        "medium",   "Articulated trucks",            113000 * us_aus_conversion,       2030,
                               "electric",    0,        "high",     "Articulated trucks",            70000 * us_aus_conversion,        2035,
                               "electric",    0,        "low",      "Rigid trucks",                  82000 * us_aus_conversion,        2022,
-                              "electric",    0,        "medium",   "Rigid trucks",                  40000 * us_aus_conversion,        2030,
-                              "electric",    0,        "high",     "Rigid trucks",                  27000 * us_aus_conversion,        2035)
+                              "electric",    0,        "medium",   "Rigid trucks",                  40000 * us_aus_conversion,        2024,
+                              "electric",    0,        "high",     "Rigid trucks",                  27000 * us_aus_conversion,        2026)
 
 # Interpolating between data points
 art <- infr_cost_rid_art %>% 
@@ -160,7 +165,23 @@ estimate_tco <- function(
     unique() %>% 
     pivot_longer(cols = 8:9,
                  names_to = "fuel") %>% 
-    select(-value)
+    select(-value) %>% 
+  
+  # Correcitng for line haul removal 
+    
+  #' Scaling articulated truck km travelled to `remove' line-haul operations from the data
+  #' This is done because line haul is not considered feasible for the TCO estimate 
+  #' In the time frame we are discussing (it is too uncertain), and otherwise including
+  #' it probably overstates the TCO point (brings it too far forward). 
+  #' We assume that instead of traveling ~350-500km per day (7 day - 5 day estimate over 10 years),
+  #' use of non-line-haul trucks is 10\% lower (315 - 450 km/day). This is line with what is considered
+  #' technically feasibly by the ICCT (on the safe side - they assume up to 500km/day reasonable)
+  #' This is also conservative given that a time and weight penalty is also added to costs, which mainly
+  #' reflect constraints on line haul
+
+    mutate(vkt = case_when(
+      fuel_class == "Articulated trucks" ~ vkt * 0.9,
+      fuel_class != "Articulaetd trucks" ~ vkt))
   
   
   # Adding upfront vehicle costs ---------------------------------------------
@@ -319,225 +340,3 @@ tco_scenarios <- bind_rows(
 #    mutate(cost_scen = "low-infr-high-elec")
   
   )
-
-
-
-
-
-
-
-
-# Plotting the estimates ----------------------------------------------
-
-cost_colours <- c("social_cost" = grattan_black,
-                  "co2" = grattan_grey3,
-                  "time_weight_penalty" = grattan_lightyellow,
-                  "adblue_cost" = grattan_yellow,
-                  "maintenance_cost" = grattan_orange,
-                  "infrastructure_cost" = grattan_darkorange,
-                  "fuel_cost" = grattan_red,
-                  "purchase_price" = grattan_darkred)
-
-
-tco_summarised <- tco_scenarios %>% 
-  filter(age <= 10) %>% 
-  pivot_longer(cols = 10:15,
-               names_to = "cost_type",
-               values_to = "cost") %>% 
-  #Discounting at 4%
-  mutate(cost = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost,
-         total_cost = (1 / (1 + 0.07)^(fleet_year - 2022)) * total_cost) %>% 
-  
-  group_by(sales_year, fuel, cost_type, fuel_class, cost_scen) %>% 
-  summarise(cost = sum(cost))
-
-
-
-
-# Maybe best as a percentage of total costs?
-
-tco_chart <- tco_summarised %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-  group_by(sales_year, fuel, fuel_class, cost_scen) %>% 
-  summarise(cost = sum(cost)) %>% 
-  filter(sales_year <= 2030)  %>% 
-  pivot_wider(names_from = fuel,
-              values_from = cost) %>% 
-  mutate(incr_cost = (electric - diesel) / diesel) 
-  
-
-
-
-# The confidence intervals are just loess
-tco_chart %>% 
-  ggplot(aes(x = sales_year,
-             y = incr_cost,
-             colour = fuel_class,
-             fill = fuel_class)) +
-  
-  
-  geom_hline(yintercept = 0,
-             linetype = "dashed") +
-  
-  geom_smooth(alpha = 0.2) +
- # geom_point() +
-  theme_grattan() + 
-  theme(strip.text.y = element_blank()) +
-  grattan_colour_manual(2) + 
-  grattan_fill_manual(2) +
-  scale_y_continuous_grattan(limits = c(-0.35, 0.35),
-                             label = scales::label_percent()) +
-
-  
- # geom_text(data = . %>% 
-#              filter(fuel_class == "Articulated trucks"),
-#            aes(x = 2030,
-#                y = 0.13,
-#                label = "An average articulated\ntruck will reach TCO\nparity around\n2026-28."),
-#            check_overlap = TRUE,
-#            hjust = "right",
-#            fontface = "bold",
-#            size = 5,
-#            fill = "white",
-#            colour = grattan_grey4) +
-  
-#  geom_curve(data = . %>% 
-#               filter(fuel_class == "Articulated trucks"),
-#             aes(x = 2027.5,
-#                 xend = 2026.6,
-#                 y = 0.15,
-#                 yend = 0.02),
-#             arrow = arrow(length = unit(0.1, "inches"),
-#             type = "closed"),
-#             colour = grattan_grey4) +
-  
-  geom_text(data =. %>% 
-               filter(sales_year == 2022),
-             aes(x = 2022,
-                 y = 0.33,
-                 label = fuel_class),
-            hjust = "left",
-            fontface = "bold",
-            check_overlap = TRUE,
-            size = 7) +
-  
-  
-  facet_grid(rows = vars(fuel_class)) +
-  
-  labs(title = "Total cost of ownership parity is approaching quickly for articulated trucks",
-       subtitle = "12 year total cost of ownership estimate",
-       caption = "Based on Grattan analysis. A discount rate of 4% is applied. Costs reflect vehicle running costs and infrastructure costs associated with charging. 
-       Assumed infrastructure costs are highly conservative, and reflective of very low volume electric fleets (under 100 trucks).",
-       x = NULL)
-
-#-------------------
-
-#grattan_save(filename = "atlas/place-holder-tco-chart.pdf",
-#             type = "wholecolumn",
-#             save_ppt = TRUE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-testa <- tco_chart %>% 
-  ungroup() %>% 
-  group_by(fuel_class, sales_year) %>% 
-  filter(incr_cost == max(incr_cost) | incr_cost == min(incr_cost)) %>% 
-  mutate(cost_scen = if_else(incr_cost == max(incr_cost),
-                             "max", "min")) %>% 
-  select(-diesel, -electric) %>% 
-  pivot_wider(names_from = cost_scen,
-              values_from = incr_cost)
-
-
-
-# The confidence intervals in the current method include 
-tco_chart %>% 
-  ggplot(aes(x = sales_year,
-           #  y = incr_cost, 
-             colour = fuel_class,
-             fill = fuel_class)) +
-  #creating shaded area to contain all the points
-  geom_ribbon(data = testa,
-              aes(x = sales_year,
-                  ymin = min,
-                  ymax = max),
-              alpha = 0.2, 
-              colour = NA) +
-  
-  geom_smooth(aes(x = sales_year,
-                  y = incr_cost),
-              alpha = 0) +
-  theme_grattan() + 
-  grattan_colour_manual(2) + 
-  grattan_fill_manual(2) +
-  scale_y_continuous_grattan(limits = c(-0.35, 0.35),
-                             label = scales::label_percent()) +
-  
-  geom_hline(yintercept = 0) +
-  
-  facet_wrap(~fuel_class) +
-  
-  labs(title = "Total cost of ownership parity is approaching quickly for articulated trucks",
-       subtitle = "12 year total cost of ownership estimate",
-       caption = "Based on Grattan analysis. A discount rate of 4% is applied. Costs reflect vehicle running costs and infrastructure costs associated with charging. 
-       Assumed infrastructure costs are highly conservative, and reflective of very low volume electric fleets (under 100 trucks).",
-       x = NULL)
-
-
-#-----------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-tco_summarised %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-  group_by(sales_year, fuel, fuel_class, cost_scen) %>% 
-  summarise(cost = sum(cost)) %>% 
-  filter(sales_year <= 2030) %>% 
-  
-  ggplot(aes(x = sales_year,
-             y = cost,
-             colour = fuel)) +
-  geom_point() +
-  geom_smooth() +
-  theme_grattan() + 
-  grattan_colour_manual(2) + 
-  scale_y_continuous_grattan(limits = c(0, NA),
-                             label = scales::label_dollar()) +
-  
-  facet_wrap(~fuel_class,
-             scales = "free_y") +
-  
-  labs(title = "Total cost of ownership parity is approaching quickly for articulated trucks",
-       subtitle = "12 year total cost of ownership estimate",
-       caption = "Based on Grattan analysis. A discount rate of 4% is applied. Costs reflect vehicle running costs and infrastructure costs associated with charging. 
-       Assumed infrastructure costs are highly conservative, and reflective of very low volume electric fleets (under 100 trucks).")
-
-
-
-
-tco_chart %>% 
-  filter(cost_scen == "base") %>% 
-  mutate(gap = (electric - diesel))
-

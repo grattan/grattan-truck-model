@@ -8,13 +8,13 @@ policy_outcomes <- read_rds("data/policy_outcomes.rds")
 
 # Collating data ------------------------------------------
 
-data_2020 <- policy_outcomes %>% 
+data_2022 <- policy_outcomes %>% 
   filter(fleet_year == 2022,
          vkt_scenario == "vkt_central",
          scenario == "baseline") 
 
 
-data_2020_sum <- data_2020 %>% 
+data_2022_sum <- data_2022 %>% 
   group_by(sales_year, fuel_class, vkt, total) %>% 
   summarise(health_cost_total = sum(health_cost_total)) %>% 
   
@@ -31,7 +31,7 @@ data_2020_sum <- data_2020 %>%
 # Histogram for just PM25 --------------------------------------
 
 # Wrangling data -----
-data_2020_pm25 <- data_2020 %>% 
+data_2022_pm25 <- data_2022 %>% 
   group_by(sales_year, fuel_class, vkt, total, pollutant_cat2) %>% 
   summarise(pollutant_total = sum(pollutant_total)) %>% 
   filter(pollutant_cat2 == "pm25") %>% 
@@ -48,20 +48,20 @@ data_2020_pm25 <- data_2020 %>%
 # Labels -----
 labs_1 <- tibble(lab = c("Share of total kilometres travelled", "Share of total PM2.5 emissions"),
                  x = c(1980, 1980),
-                 y = c(165, 165),
+                 y = c(115, 115),
                  name = c("vkt_prop", "pollutant_total_prop")) %>% 
   mutate(name = factor(name, levels = c("vkt_prop", "pollutant_total_prop")))
 
 
-segment_label <- data_2020_pm25 %>% 
-  mutate(age_cat = case_when(sales_year <= 2000 ~ "pre-2020",
-                             sales_year > 2000 ~ "post-2020")) %>% 
+segment_label <- data_2022_pm25 %>% 
+  mutate(age_cat = case_when(sales_year <= 2002 ~ "pre-2002",
+                             sales_year > 2002 ~ "post-2002")) %>% 
   group_by(age_cat) %>% 
   summarise(vkt_prop = sum(vkt_prop),
             pollutant_total_prop = sum(pollutant_total_prop)) %>% 
   pivot_longer(cols = 2:3) %>% 
-  filter(age_cat == "pre-2020") %>% 
-  mutate(x = 1990, 
+  filter(age_cat == "pre-2002") %>% 
+  mutate(x = 1991, 
          y = 87) %>% 
   select(-age_cat) %>% 
   mutate(name = factor(name, levels = c("vkt_prop", "pollutant_total_prop")),
@@ -70,22 +70,23 @@ segment_label <- data_2020_pm25 %>%
 
 
 # Plot -----------
-c2_old_trucks_vkt_pmc25 <- data_2020_pm25 %>% 
+c2_old_trucks_vkt_pmc25 <- data_2022_pm25 %>% 
   select(-pollutant_total, -vkt) %>% 
   pivot_longer(cols = 2:3) %>%
   #adjusting so we can use a density plot
   mutate(value = round(value * 1000)) %>% 
   uncount(value) %>%
   mutate(name = factor(name, levels = c("vkt_prop", "pollutant_total_prop")),
-         age_cat = case_when(sales_year <= 2000 ~ "pre-2020",
-                             sales_year > 2000 ~ "post-2020")) %>%
+         age_cat = case_when(sales_year <= 2002 ~ "pre-2002",
+                             sales_year > 2002 ~ "post-2002")) %>%
   
   filter(sales_year <= 2020) %>% 
   
   ggplot(aes(fill = name)) +
   
   geom_histogram(aes(x = sales_year,
-                     alpha = age_cat)) +
+                     alpha = age_cat),
+                 binwidth = 1) +
   scale_alpha_discrete(range = c(0.5, 0.9)) +
   
   geom_text(data = labs_1,
@@ -97,9 +98,9 @@ c2_old_trucks_vkt_pmc25 <- data_2020_pm25 %>%
             hjust = "left") +
   
   #Creating callout areas
-  geom_segment(aes(x = 1980, xend = 2000, y = 75, yend = 75)) +
+  geom_segment(aes(x = 1980, xend = 2002, y = 75, yend = 75)) +
   geom_segment(aes(x = 1980, xend = 1980, y = 75, yend = 70)) +
-  geom_segment(aes(x = 2000, xend = 2000, y = 75, yend = 70)) +
+  geom_segment(aes(x = 2002, xend = 2002, y = 75, yend = 70)) +
   
   # And labeling them
   geom_text(data = segment_label,
@@ -116,8 +117,8 @@ c2_old_trucks_vkt_pmc25 <- data_2020_pm25 %>%
   scale_colour_manual(values = c(grattan_yellow, grattan_red, grattan_grey3)) +
   scale_y_continuous_grattan(label = scales::label_percent(scale = 0.1,
                                                            accuracy = 1),
-                             limits = c(0, 180),
-                             breaks = c(0, 50, 100, 150)) +
+                             limits = c(0, 150),
+                             breaks = c(0, 50, 100)) +
   
   facet_grid(rows = vars(name)) +
   

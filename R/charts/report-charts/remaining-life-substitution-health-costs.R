@@ -5,7 +5,7 @@
 # vehicle
 
 # Loading data --------------------------------------
-
+source("R/00-setup.R")
 policy_outcomes <- read_rds("data/policy_outcomes.rds")
 health_costs <- read_rds("data/health_costs.rds")
 
@@ -102,6 +102,62 @@ c2_health_costs_per_truck <- non_substitued_discounted_p %>%
 
 
 
+#' Splitting by 'rural only' and 'Urban only' vehicles -----------------------
+#' This is slightly fiddly but we do this by scaling up the costs by adding in the rural/urban percentages
+
+#' Scaling the Urban km's/costs
+policy_outcomes %>% 
+  filter(scenario == "baseline") %>% 
+  group_by(scenario, vkt_scenario, fuel_class, fleet_year, sales_year, total, age) %>% 
+  summarise()
+
+
+
+pollutant_year <chr>, pollutant <chr>, pollutant_rate <dbl>, tyre_improvement <dbl>,
+   engine_efficiency <dbl>, fuel_consumption <dbl>, co2_ice <dbl>, co2_ev <dbl>, co2 <dbl>, pollutant_total <dbl>, pollutant_cat <chr>,
+   pollutant_cat2 <chr>, damage_cost_t <dbl>, health_cost_total <dbl>
+
+
+
+  mutate(marginal_cost = health_cost_total / total) %>% 
+  
+  group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
+  summarise(marginal_cost = sum(marginal_cost)) %>% 
+  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
+  mutate(fuel_class = factor(fuel_class, levels = names(vech_colours)))
+
+
+# Adding a discount rate of 7%
+non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
+
+non_substitued_discounted_p <- non_substitued_discounted %>% 
+  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
+  group_by(sales_year, vkt_scenario, fuel_class) %>% 
+  summarise(marginal_cost = sum(marginal_cost)) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -148,8 +204,6 @@ vech_age_breakdown <- policy_outcomes %>%
 
 
 # Calculating total costs per vehicle, by age -----------------------------------
-
-
 # Now working out the social cost per vehicle for a specific year (2022), and how that is 
 # distributed by vehicle age
 
@@ -213,7 +267,7 @@ cost_per_vehicle %>%
 
 euro_3 <- policy_outcomes %>% 
   ungroup() %>% 
-  filter(sales_year == 2003) %>% 
+  filter(sales_year == 2003-) %>% 
   distinct(fuel_class, pollutant, pollutant_rate) %>% 
   rename("pollutant_rate2" = pollutant_rate) 
 

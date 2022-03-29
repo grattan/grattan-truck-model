@@ -102,7 +102,7 @@ sales <- read_rds("data/sales.rds") %>%
   count(fuel_class, sales_year, wt = sales, name = "sales") %>% 
   filter(sales_year >= 2024)
 
-targets <- read_excel ("data-raw/electric-uptake.xlsx",
+targets <- read_excel("data-raw/electric-uptake.xlsx",
                        sheet = "electric-targets")
 
 ev_sales <- left_join(sales, targets) %>% 
