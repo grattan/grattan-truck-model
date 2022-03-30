@@ -4,7 +4,7 @@
 #' All these charts are from code within the report-charts folder, and all are saved
 #' into a single pdf file under atlas/report-charts/report-charts-joined in the dropbox
 
-
+source("R/00-setup.R")
 #' Reading all relevant scripts (this might take a bit of time to run) ---------
 path <- c("R/charts/report-charts/")    
 source_files <- list.files(path, "*.R$")  
@@ -33,6 +33,7 @@ save_plots <- function(types, data, names) {
     i <- i + 1
   } 
 }
+
 
 # Preparing the data for the function
 report_charts <- list(c2_euro_vi_pollution, c2_euro_vi_cost, c2_old_trucks_share, c2_old_trucks_vkt_pmc25,
@@ -66,7 +67,7 @@ pdf_combine(as_vector(paths), output = "atlas/report-charts/report-charts-joined
 # Saving all charts to a .pptx file ----------------------------------
 
 
-#grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
+grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
 
 
 

@@ -44,7 +44,9 @@ rem_life_cost <- policy_outcomes %>%
   group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
   summarise(marginal_cost = sum(marginal_cost)) %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
-  mutate(fuel_class = factor(fuel_class, levels = names(vech_colours)))
+  mutate(fuel_class = factor(fuel_class, levels = names(vech_colours))) %>% 
+  #need to filter to 2022 onwards 
+  filter(fleet_year >= 2022)
 
 
 # Adding a discount rate of 7%
@@ -106,34 +108,81 @@ c2_health_costs_per_truck <- non_substitued_discounted_p %>%
 #' This is slightly fiddly but we do this by scaling up the costs by adding in the rural/urban percentages
 
 #' Scaling the Urban km's/costs
-policy_outcomes %>% 
-  filter(scenario == "baseline") %>% 
-  group_by(scenario, vkt_scenario, fuel_class, fleet_year, sales_year, total, age) %>% 
-  summarise()
-
-
-
-pollutant_year <chr>, pollutant <chr>, pollutant_rate <dbl>, tyre_improvement <dbl>,
-   engine_efficiency <dbl>, fuel_consumption <dbl>, co2_ice <dbl>, co2_ev <dbl>, co2 <dbl>, pollutant_total <dbl>, pollutant_cat <chr>,
-   pollutant_cat2 <chr>, damage_cost_t <dbl>, health_cost_total <dbl>
-
-
-
-  mutate(marginal_cost = health_cost_total / total) %>% 
+rural_urban_only <- policy_outcomes %>% 
+  filter(scenario == "baseline",
+         vkt_scenario == "vkt_central",
+         fleet_year %in% (2020:2040)) %>% 
+  group_by(scenario, vkt_scenario, region, fuel_class, fleet_year, sales_year, total, age, vkt) %>% 
+  summarise(health_cost_total = sum(health_cost_total)) %>% 
+  arrange(fleet_year, sales_year, age, fuel_class) %>% 
+  group_by(fleet_year, sales_year, fuel_class, total) %>% 
+  #' Adding a scaling factor (what to multiply the km by if all the km were in the 
+  #' given region (urban/rural))
+  summarise(vkt_scale = sum(vkt) / vkt,
+            #' Calculating the health cost for an individual vehicle
+            health_cost_total = health_cost_total / total,
+            vkt = vkt,
+            region = region) %>% 
+  select(-total) %>% 
+  mutate(scaled_costs = health_cost_total * vkt_scale) %>% 
+  ungroup() %>% 
+  # discounting from 2022
+  filter(fleet_year >= 2022) %>% 
+  mutate(scaled_costs_disc = (1 / (1 + 0.07)^(fleet_year - 2022)) * scaled_costs) %>% 
+  ungroup() %>% 
+  count(sales_year, fuel_class, region, wt = scaled_costs_disc) 
   
-  group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
-  summarise(marginal_cost = sum(marginal_cost)) %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
-  mutate(fuel_class = factor(fuel_class, levels = names(vech_colours)))
+  
+# Plotting results
+rural_urban_only %>% 
+  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
+  ggplot(aes(x = sales_year,
+             y = n / 1000,
+             fill = fuel_class)) +
+  
+  geom_col(alpha = 0.9) +
+  
+  theme_grattan() +
+  theme(strip.text.y = element_blank()) +
+  grattan_fill_manual(2, rev = TRUE) +
+  scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "K"),
+                             limits = c(0, 300),
+                             breaks = c(0, 100, 200)) +
+  scale_x_continuous_grattan(limits = c(1980, 2022),
+                             breaks = c(1980, 2000, 2020)) +
+  
+  grattan_label(data = . %>% 
+                  filter(sales_year == 1980, region == "metro"),
+                aes(label = fuel_class,
+                    colour = fuel_class,
+                    y = 280),
+                fontface = "bold",
+                hjust = "left") +
+  
+  grattan_colour_manual(2, rev = TRUE) +
+  # labs(title = "The health damage from trucks is huge",
+  #       subtitle = "Estimated health cost of vehicles over their remaining lifetime, by sales date (non-substituted)",
+  #       caption = "A discount rate of 7% is applied. Does not include health damage from re-entrained road dust.",
+  #      x = "Year of manufacture") +
+  labs(x = "Year of manufacture") +
+  facet_grid(rows = vars(fuel_class),
+             cols = vars(region))
+
+#  mutate(marginal_cost = health_cost_total / total) %>% 
+  
+#  group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
+#  summarise(marginal_cost = sum(marginal_cost)) %>% 
+ # filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
+ # mutate(fuel_class = factor(fuel_class, levels = names(vech_colours)))
 
 
 # Adding a discount rate of 7%
-non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
+#non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
 
-non_substitued_discounted_p <- non_substitued_discounted %>% 
-  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-  group_by(sales_year, vkt_scenario, fuel_class) %>% 
-  summarise(marginal_cost = sum(marginal_cost)) 
+#non_substitued_discounted_p <- non_substitued_discounted %>% 
+#  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
+#  group_by(sales_year, vkt_scenario, fuel_class) %>% 
+#  summarise(marginal_cost = sum(marginal_cost)) 
 
 
 
@@ -267,7 +316,7 @@ cost_per_vehicle %>%
 
 euro_3 <- policy_outcomes %>% 
   ungroup() %>% 
-  filter(sales_year == 2003-) %>% 
+  filter(sales_year == 2003) %>% 
   distinct(fuel_class, pollutant, pollutant_rate) %>% 
   rename("pollutant_rate2" = pollutant_rate) 
 
