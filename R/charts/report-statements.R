@@ -1,0 +1,151 @@
+# Report statements
+
+#' This script calculates/checks the statistics cited through the report that are not explicitly
+#' included in the charts. Currently this is just for chapter 2 
+
+source("R/00-setup.R")
+source("data/policy-scenarios.rds")
+
+
+#' ---------------------------Chapter 2 statements -------------------------------
+
+#' Section 2.2 ------------------
+
+#' "Compared to current ADRs, if Euro VI was adopted 2024, NOx emissions woulc be 66\% lower, 
+#' and 14\% lower than if Euro VI as introduced in 2027. 
+#' Similarly, in 2040 PM2.5 emissions under Euro VI implmeneted in 2024 would be 37\% lower compared to current ADRs, 
+#' and 5\% lower than if EUro VI is introduced in 2027."
+#' 
+#' Code is from the script with chart that plots this:
+#' source("R/charts/report-charts/euro-vi-costs-scenario-charts.R")
+
+policy_outcomes %>% 
+  filter(pollutant_cat2 %in% c("nox", "pm25")) %>% 
+  group_by(scenario, vkt_scenario, fleet_year, pollutant_cat2) %>% 
+  # Calculating total pollutant emissions for each fleet year
+  summarise(pollutant_total = sum(pollutant_total) / 1000) %>% 
+  filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"),
+         fleet_year <= 2040) %>% 
+  mutate(scenario = factor(scenario, levels = colour_names)) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = pollutant_total) %>% 
+  filter(fleet_year == 2040) %>% 
+  select(scenario, pollutant_cat2, vkt_central) %>% 
+  group_by(pollutant_cat2) %>% 
+  # Calculating the % difference between the scenarios (included in the table as a reduction)
+  mutate(against_baseline = (1 - vkt_central / vkt_central[scenario == "baseline"]) * 100,
+         against_euro_2027 = (1 - vkt_central / vkt_central[scenario == "Euro 6 (2027)"]) * 100)
+
+
+#' Introducing Euro-VI in 2027 would reduce annual health cost by about \$2 billion
+#' dollars by 2040; introducing Euro VI in 2024 would reduce health cost by a further 
+#' \$200 million
+
+policy_outcomes %>% 
+  group_by(scenario, vkt_scenario, fleet_year) %>% 
+  summarise(health_cost_total = sum(health_cost_total) / 1000000000) %>% 
+  filter(scenario %in% c("Euro 6 (2024)", "Euro 6 (2027)", "baseline"),
+         fleet_year <= 2040) %>% 
+  mutate(scenario = factor(scenario, levels = colour_names)) %>% 
+  pivot_wider(names_from = vkt_scenario,
+              values_from = health_cost_total) %>% 
+  select(scenario, fleet_year, vkt_central) %>% 
+  filter(fleet_year == 2040) %>% 
+  ungroup() %>% 
+  # Calculating the absolute difference between the scenarios (included in the table as a reduction)
+  mutate(against_baseline = vkt_central - vkt_central[scenario == "baseline"],
+         against_euro_2027 = vkt_central - vkt_central[scenario == "Euro 6 (2027)"])
+
+
+#' Section 2.3.1 -------------------------
+source("R/charts/report-charts/age-distribution-of-fleet.R")
+
+#' 16\% per cent of trucks were manufactured before 1996
+fleet_distribution %>% 
+  filter(year_of_manufacture <= 2020) %>% 
+  mutate(age_cat = if_else(
+    year_of_manufacture <= 1996, "pre-96", "post-96")) %>%   
+  group_by(age_cat, series) %>% 
+  summarise(count = sum(count)) %>% 
+  ungroup() %>% 
+  mutate(as_percentage = count / sum(count))
+
+#' Another  per cent of trucks were manufactured between 1996 and 2003
+fleet_distribution %>% 
+  filter(year_of_manufacture <= 2020) %>% 
+  mutate(age_cat = if_else(
+    year_of_manufacture %in% (1996:2003), "96-03", "other")) %>%   
+  group_by(age_cat, series) %>% 
+  summarise(count = sum(count)) %>% 
+  ungroup() %>% 
+  mutate(as_percentage = count / sum(count))
+
+
+
+#' General table of useful values about fleet -------------------
+
+#' Table outlining the share each euro group (for pollution, vkts, % share of vehcs etc.)
+#' #' First making a table with the raw numbers (not proportions)
+euro_group_abs <- policy_outcomes %>% 
+  filter(fleet_year == 2022,
+         vkt_scenario == "vkt_central",
+         scenario == "baseline",
+         fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
+  group_by(fuel_class, sales_year, total, pollutant_year) %>% 
+  #first summarising down regions and health costs 
+  summarise(health_cost_total = sum(health_cost_total),
+            vkt = sum(vkt)) %>% 
+  
+  # now summarising into a table with the stats we are after 
+  group_by(pollutant_year, fuel_class) %>% 
+  summarise(total = sum(total),
+            health_cost_total = sum(health_cost_total),
+            vkt = sum(vkt)) %>% 
+  ungroup()
+  
+#' And now as proportions - first with articulated/rigid combined (so as a % of the whole,
+#' not as a % of each class)
+euro_comb <- euro_group_abs %>% 
+  group_by(pollutant_year) %>% 
+  summarise(total = sum(total),
+            health_cost_total = sum(health_cost_total),
+            vkt = sum(vkt)) %>% 
+  mutate(fuel_class = "Articulated and rigid trucks (combined)",
+         total = total / sum(total),
+         health_cost_total = health_cost_total / sum(health_cost_total),
+         vkt = vkt / sum(vkt)) 
+  
+#' And as Rigid/articulated seperately 
+euro_sep <- euro_group_abs %>% 
+  group_by(fuel_class) %>% 
+  mutate(total = total / sum(total),
+         health_cost_total = health_cost_total / sum(health_cost_total),
+         vkt = vkt / sum(vkt)) 
+
+#' Binding to export
+all_euro_stats <- bind_rows(euro_comb, euro_sep) %>% 
+  mutate(pollutant_year = factor(pollutant_year, 
+                                 levels = c("pre 1996", "1996-2002", "2003-2008", "2009-2015", "post 2015"))) %>% 
+  arrange(fuel_class, pollutant_year) %>% 
+  relocate(fuel_class) %>% 
+  group_by(fuel_class) %>% 
+  mutate(total_cumulative = cumsum(total),
+         health_cost_cumulatie = cumsum(health_cost_total),
+         vkt_cumulative = cumsum(vkt))
+
+#' Writing data 
+#write_csv(all_euro_stats, "vehicle-stats-by-euro.csv")
+
+
+
+
+
+
+
+#' ------------------------Chapter 3 statements----------------------------- 
+
+
+
+
+
+

@@ -7,6 +7,14 @@
 #' # Setup -------------------------------------------------
 
 source("R/00-setup.R")
+source("R/model-inputs/01-vehicle-attrition.R")
+source("R/model-inputs/02-vehicle-sales.R")
+source("R/model-inputs/03-vkts.R")
+source("R/model-inputs/04-fuel-consumption.R")
+source("R/model-inputs/06-vkt-urban-rural-split.R")
+source("R/model-inputs/07-electric-hdvs.R")
+source("R/model-inputs/08-ev-cost-forecasts.R")
+
 
 #Reading relevant data
 fuel_vkt <- read_rds("data/fuel_consumption.rds")

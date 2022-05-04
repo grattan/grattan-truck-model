@@ -194,7 +194,19 @@ pop_growth <- read_xlsx("data-raw/IG-report-data.xlsx",
   #converting to a proportion change 
   mutate(population_growth = (population_growth / 100) + 1) %>% 
   filter(year >= 2020) %>% 
-  rename("sales_year" = year)
+  rename("sales_year" = year) %>% 
+
+# change this to be at rate stays steady at 1.2% from 2028 onwards to account for the 
+# fact that the IG forecasts are bad. This 1.2% is more similar to historical estimates and
+# pre-covid ABS population forecasts (https://www.abs.gov.au/statistics/people/population/population-projections-australia/2017-base-2066)
+  mutate(population_growth = case_when(
+    sales_year >= 2028 ~ 1.012,
+    sales_year < 2028 ~ population_growth))
+  
+  
+pop_growth %>% 
+  ggplot(aes(x = sales_year, y = population_growth)) +
+  geom_line()
 
 
 

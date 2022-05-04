@@ -4,6 +4,11 @@
 source("R/00-setup.R")
 source("R/model/11-policy-outcomes.R")
 
+library(glue)
+library(knitr)
+library(pdftools)
+library(Cairo)
+
 
 # Historical data form DISER
 diser <- read_excel("data-raw/diser-co2-forecasts.xlsx") %>% 
@@ -12,6 +17,7 @@ diser <- read_excel("data-raw/diser-co2-forecasts.xlsx") %>%
                names_to = "fuel_class",
                values_to = "emissions") %>% 
   clean_names() %>% 
+  #count(year, wt = emissions) %>% 
   group_by(year) %>% 
   summarise(emissions = sum(emissions)) %>% 
   filter( year <= 2021)
@@ -44,42 +50,43 @@ diser_proj <- bind_rows(
 
 
 # Plotting -------------------------------------------------- 
-library(glue)
-library(knitr)
-library(pdftools)
-library(Cairo)
+cost_of_offset <- 25
 
 
 c3_offset_costs <- diser_proj %>% 
   ggplot(aes(x = year,
-              y = emissions,
-              colour = scenario)) +
+             y = emissions,
+             colour = scenario)) +
   geom_line() +
   theme_grattan() +
   scale_colour_manual(values = c(grattan_darkorange, grattan_red, grattan_orange, grattan_yellow)) +
-  scale_y_continuous_grattan(limits = c(0, 32)) +
-  scale_x_continuous_grattan(limits = c(1990, 2060),
-                             breaks = c(1990, 2010, 2030, 2050)) +
+  grattan_y_continuous(limits = c(0, 32)) +
+  grattan_x_continuous(limits = c(1990, 2060),
+                       breaks = c(1990, 2010, 2030, 2050)) +
   
   geom_point(data = . %>% 
                filter(year == 2050),
              size = 4) +
+  
   geom_vline(xintercept = 2021,
              linetype = "dashed") +
+  
   geom_text(data = . %>% 
               filter(year == 2050, emissions > 0),
             aes(x = year + 1,
                 y = emissions,
-                label = paste0("$", emissions * 25, "m")), # used a carbon cost of $25 here
+                label = paste0("$", emissions * cost_of_offset, "m")), # used a carbon cost of $25 here
             fontface = "bold",
             hjust = "left") +
+  
   geom_text(data = . %>% 
               filter(year == 2050, emissions == 0),
             aes(x = year + 1,
                 y = emissions + 1,
-                label = paste0("$", emissions * 25, "m")), # used a carbon cost of $25 here
+                label = paste0("$", emissions * cost_of_offset, "m")), # used a carbon cost of $25 here
             fontface = "bold",
             hjust = "left") +
+  
   #adding captions
   geom_richtext(data = . %>% ungroup() %>% slice(1),
                 x = 1992, y = 22,

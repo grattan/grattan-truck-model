@@ -66,7 +66,6 @@ pdf_combine(as_vector(paths), output = "atlas/report-charts/report-charts-joined
 
 # Saving all charts to a .pptx file ----------------------------------
 
-
 grattan_save_pptx(report_charts, "atlas/all-report-charts.pptx")  
 
 

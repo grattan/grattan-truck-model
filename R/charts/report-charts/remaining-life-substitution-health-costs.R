@@ -10,12 +10,12 @@ policy_outcomes <- read_rds("data/policy_outcomes.rds")
 health_costs <- read_rds("data/health_costs.rds")
 
 
-# Discount rate function 
+# Discount rate function (this should be replaced with just using the formula in mutate... unecessary)
 discount <- function(data, rate) {
   
   i <- 1
   while (i <= nrow(data)) {
-    
+     
     data$marginal_cost[i] =  (data$marginal_cost[i])  / ((1 + rate)^(data$fleet_year[i] - 2022))
     
     i <- i + 1
@@ -30,17 +30,28 @@ vech_colours <- c("Articulated trucks" = grattan_red,
                   "Rigid trucks" = grattan_orange,
                   "Buses" = grattan_yellow)
 
+
 # Estimating marginal costs of vehicles if taken off the road ------------------
 # This is calculated first without replacement - i.e., what is the social cost of a vehicle 
 # over it's remaining life?
 
 #This is the chart that is in the the report 
 
+
+
+# First wrangling our data from he policy outcomes dataset to calculate the cost per vehicle
+# in each fleet year
 rem_life_cost <- policy_outcomes %>% 
   ungroup() %>% 
-  filter(scenario == "baseline") %>% 
-  mutate(marginal_cost = health_cost_total / total) %>% 
-  
+  filter(scenario == "baseline",
+         fleet_year >= 2022) %>% 
+  group_by(scenario, vkt_scenario, fuel_class, sales_year, region, pollutant) %>% 
+  # creating a new max of vehicle to base the attrition rates off - i.e. the number of vehicles existing either in
+  # 2022 (the earliest fleet year), or when the vehicle was sold (if post-2022) will be the max 
+  mutate(max_total = max(total)) %>% 
+  # Calculate health costs per vehicle. This accounts for attrition becase it's / max_total
+  ungroup() %>% 
+  mutate(marginal_cost = health_cost_total / max_total) %>% 
   group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
   summarise(marginal_cost = sum(marginal_cost)) %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
@@ -49,9 +60,11 @@ rem_life_cost <- policy_outcomes %>%
   filter(fleet_year >= 2022)
 
 
-# Adding a discount rate of 7%
+# Discounting at 7%
 non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
 
+# And now summing over all fleet years, by sales year. This is what incldues all the remaining
+# years of life of the truck in the future (not just a single year)
 non_substitued_discounted_p <- non_substitued_discounted %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
   group_by(sales_year, vkt_scenario, fuel_class) %>% 
@@ -72,8 +85,8 @@ c2_health_costs_per_truck <- non_substitued_discounted_p %>%
   theme(strip.text.y = element_blank()) +
   grattan_fill_manual(2, rev = TRUE) +
   scale_y_continuous_grattan(labels = scales::label_dollar(suffix = "K"),
-                             limits = c(0, 190),
-                             breaks = c(0, 50, 100, 150)) +
+                             limits = c(0, 125),
+                             breaks = c(0, 50, 100)) +
   scale_x_continuous_grattan(limits = c(1980, 2022),
                              breaks = c(1980, 2000, 2020)) +
   
@@ -82,7 +95,7 @@ c2_health_costs_per_truck <- non_substitued_discounted_p %>%
                 
                 aes(label = fuel_class,
                     colour = fuel_class,
-                    y = 170),
+                    y = 120),
                 fontface = "bold",
                 hjust = "left") +
   
@@ -107,27 +120,37 @@ c2_health_costs_per_truck <- non_substitued_discounted_p %>%
 #' Splitting by 'rural only' and 'Urban only' vehicles -----------------------
 #' This is slightly fiddly but we do this by scaling up the costs by adding in the rural/urban percentages
 
-#' Scaling the Urban km's/costs
+#' Scaling the Urban km's/costs. Basically saying if urban kms are 50% of the total km, 
+#' we can simple take the total health cost figures and double them to get a scenario where
+#' the car only drives in an urban setting (and vice versa with rural). We can do this because 
+#' We don't assume any difference in driving behaviour/fuel consumption/emissions rates between rural and urban,
+#' the only difference is the health cost 
+
 rural_urban_only <- policy_outcomes %>% 
   filter(scenario == "baseline",
          vkt_scenario == "vkt_central",
-         fleet_year %in% (2020:2040)) %>% 
+         fleet_year >= 2022) %>% 
   group_by(scenario, vkt_scenario, region, fuel_class, fleet_year, sales_year, total, age, vkt) %>% 
   summarise(health_cost_total = sum(health_cost_total)) %>% 
   arrange(fleet_year, sales_year, age, fuel_class) %>% 
-  group_by(fleet_year, sales_year, fuel_class, total) %>% 
+  group_by(scenario, vkt_scenario, fuel_class, sales_year, region, pollutant) %>% 
+  # creating a new max of vehicle to base the attrition rates off - i.e. the number of vehicles existing either in
+  # 2022 (the earliest fleet year), or when the vehicle was sold (if post-2022) will be the max 
+  mutate(max_total = max(total)) %>% 
   #' Adding a scaling factor (what to multiply the km by if all the km were in the 
   #' given region (urban/rural))
+  group_by(fleet_year, sales_year, fuel_class, total) %>% 
   summarise(vkt_scale = sum(vkt) / vkt,
-            #' Calculating the health cost for an individual vehicle
-            health_cost_total = health_cost_total / total,
+            #' Calculating the health cost for an individual vehicle (this will change
+            #' need to scale based on attrition (2022 vehicle total) )
+            health_cost_total = health_cost_total / max_total,
             vkt = vkt,
             region = region) %>% 
+  
   select(-total) %>% 
   mutate(scaled_costs = health_cost_total * vkt_scale) %>% 
   ungroup() %>% 
   # discounting from 2022
-  filter(fleet_year >= 2022) %>% 
   mutate(scaled_costs_disc = (1 / (1 + 0.07)^(fleet_year - 2022)) * scaled_costs) %>% 
   ungroup() %>% 
   count(sales_year, fuel_class, region, wt = scaled_costs_disc) 
@@ -168,21 +191,6 @@ rural_urban_only %>%
   facet_grid(rows = vars(fuel_class),
              cols = vars(region))
 
-#  mutate(marginal_cost = health_cost_total / total) %>% 
-  
-#  group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
-#  summarise(marginal_cost = sum(marginal_cost)) %>% 
- # filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
- # mutate(fuel_class = factor(fuel_class, levels = names(vech_colours)))
-
-
-# Adding a discount rate of 7%
-#non_substitued_discounted <- discount(rem_life_cost, rate = 0.07)
-
-#non_substitued_discounted_p <- non_substitued_discounted %>% 
-#  filter(fuel_class %in% c("Articulated trucks", "Rigid trucks")) %>% 
-#  group_by(sales_year, vkt_scenario, fuel_class) %>% 
-#  summarise(marginal_cost = sum(marginal_cost)) 
 
 
 
@@ -190,32 +198,7 @@ rural_urban_only %>%
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Other charts and analaysis ---------------------------------
+# Other charts and analaysis (not included in report at this stage) --------------------
 
 vech_age_breakdown <- policy_outcomes %>% 
   filter(fleet_year == 2022,
@@ -259,7 +242,11 @@ vech_age_breakdown <- policy_outcomes %>%
  cost_per_vehicle <- policy_outcomes %>% 
    filter(fleet_year == 2022,
           scenario == "baseline") %>% 
-   mutate(marginal_cost = health_cost_total / total) %>% 
+  # creating a new max of vehicle to base the attrition rates off - i.e. the number of vehicles existing either in
+  # 2022 (the earliest fleet year), or when the vehicle was sold (if post-2022) will be the max 
+  group_by(scenario, vkt_scenario, fuel_class, sales_year, region, pollutant) %>% 
+  mutate(max_total = max(total)) %>% 
+  mutate(marginal_cost = health_cost_total / max_total) %>% 
    
    group_by(age, scenario, vkt_scenario, fleet_year, fuel_class) %>% 
    summarise(marginal_cost = sum(marginal_cost)) %>% 
@@ -316,6 +303,8 @@ cost_per_vehicle %>%
 
 euro_3 <- policy_outcomes %>% 
   ungroup() %>% 
+  # (2003 SELECTED BECAUSE EURO 3. CHANGE TO 2009 FOR EURO 4. 
+  # (If you do this remember to change crop on the chart)
   filter(sales_year == 2003) %>% 
   distinct(fuel_class, pollutant, pollutant_rate) %>% 
   rename("pollutant_rate2" = pollutant_rate) 
@@ -327,6 +316,7 @@ euro_3 <- policy_outcomes %>%
 substituted <- left_join(
   policy_outcomes,
   euro_3) %>% 
+  #takes the lowest polluting rate 
   mutate(pollutant_rate = if_else(
     pollutant_rate >= pollutant_rate2,
     pollutant_rate2, 
@@ -335,7 +325,6 @@ substituted <- left_join(
 
 
 #' Calculating the cost totals for the different fractions with our replaced data
-
 substituted <- substituted %>% 
   mutate(pollutant_total = case_when(
     pollutant %in% c("ex_pm10_l", "ex_pm25_l", "ex_sox_l", "ex_voc_l", "ex_nox_l",
@@ -353,7 +342,7 @@ substituted <- substituted %>%
 
 substituted <- left_join(policy_outcomes %>% 
                            select(scenario, vkt_scenario, fuel_class, fleet_year, 
-                                  sales_year, total, region, pollutant,health_cost_total),
+                                  sales_year, total, region, pollutant, health_cost_total),
                         substituted) %>% 
   mutate(avoided_health_cost = health_cost_total - health_cost_euro_3)
 
@@ -363,7 +352,11 @@ substituted <- left_join(policy_outcomes %>%
 substituted <- substituted %>% 
   ungroup() %>% 
   filter(scenario == "baseline") %>% 
-  mutate(marginal_cost = avoided_health_cost / total) %>% 
+  # creating a new max of vehicle to base the attrition rates off - i.e. the number of vehicles existing either in
+  # 2022 (the earliest fleet year), or when the vehicle was sold (if post-2022) will be the max 
+  group_by(scenario, vkt_scenario, fuel_class, sales_year, region, pollutant) %>% 
+  mutate(max_total = max(total)) %>% 
+  mutate(marginal_cost = avoided_health_cost / max_total) %>% 
   group_by(sales_year, fleet_year, scenario, vkt_scenario, fuel_class) %>% 
   summarise(marginal_cost = sum(marginal_cost)) %>% 
   filter(fuel_class %in% c("Articulated trucks", "Rigid trucks", "Buses")) %>% 
@@ -379,6 +372,7 @@ substituted_discounted <- discount(substituted, rate = 0.07)
 
 substituted_discounted %>% 
   filter(vkt_scenario == "vkt_central",
+         fleet_year >= 2022,
          fuel_class %in% c("Rigid trucks", "Articulated trucks")) %>% 
   group_by(sales_year, scenario, vkt_scenario, fuel_class) %>% 
   summarise(marginal_cost = sum(marginal_cost)) %>% 
@@ -391,7 +385,7 @@ substituted_discounted %>%
   
   geom_text(data = . %>% filter(fuel_class == "Rigid trucks") %>% slice(1),
             aes(x = 1980,
-                y = 75000,
+                y = 16000,
                 label = "Rigid trucks"),
             colour = grattan_red,
             hjust = "left",
@@ -399,19 +393,22 @@ substituted_discounted %>%
             check_overlap = TRUE) +
   geom_text(data = . %>% filter(fuel_class == "Articulated trucks") %>% slice(1),
             aes(x = 1980,
-                y = 100000,
+                y = 42000,
                 label = "Articulated trucks"),
             colour = grattan_orange,
             hjust = "left",
             fontface = "bold",
             check_overlap = TRUE) +
   
+  geom_hline(yintercept = 0) +
+  
   theme_grattan() +
   grattan_fill_manual(2) +
   grattan_colour_manual(2) +
-  scale_y_continuous_grattan(labels = scales::label_dollar())+
-  scale_x_continuous_grattan(limits = c(1980, 2003),
-                             breaks = c(1980, 2000, 2020)) +
+  scale_y_continuous_grattan(labels = scales::label_dollar(),
+                             limits = c(0, NA))+
+  scale_x_continuous_grattan(limits = c(1980, 2004),
+                             breaks = c(1980, 1990, 2000)) +
   
   theme(strip.text.x = element_blank()) +
   #labs(title = "Cash for clunkers could significantly reduce health costs from trucks",
@@ -421,7 +418,8 @@ substituted_discounted %>%
   #     x = "Year of vehicle sale") +
   labs(x = "Year of vehicle sale") +
   
-  facet_grid(rows = vars(fuel_class))
+  facet_grid(rows = vars(fuel_class),
+             scale = "free_y")
 
 
 

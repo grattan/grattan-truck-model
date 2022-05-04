@@ -39,7 +39,7 @@ rigid_diesel <- 61
 bus_diesel <- 180
 
 
-# Ploting the prices to see the trend  -----------------------------
+# Plotting the prices to see the trend  -----------------------------
 
 ev_price %>% 
   ggplot(aes(x = year, 
@@ -64,17 +64,17 @@ ev_price %>%
 
 # Long to short vehicle range ratios -----------------------------------
 
-# To be conservative we are currently going to assume a long range price for 
-# 80\% of rigid trucks, and 90% of buses. 
-# But this is purely an assumption (CSIRO don't say wht a 'long' and 'short' range vehicles 
+# We are currently going to assume a short range price for 
+# rigid trucks and, and a 50:50 long/short range price split for buses. 
+# But this is purely an assumption (CSIRO don't say what a 'long' and 'short' range vehicles 
 # are to estimated more precisely)
 
 ev_price <- ev_price %>% 
   mutate(proportion = case_when(
-    fuel_class == "Rigid trucks" & range == "ev_short" ~ 0.2,
-    fuel_class == "Rigid trucks" & range == "ev_long" ~ 0.8,
-    fuel_class == "Buses" & range == "ev_short" ~ 0.2,
-    fuel_class == "Buses" & range == "ev_long" ~ 0.8,
+    fuel_class == "Rigid trucks" & range == "ev_short" ~ 1,
+    fuel_class == "Rigid trucks" & range == "ev_long" ~ 0,
+    fuel_class == "Buses" & range == "ev_short" ~ 0.5,
+    fuel_class == "Buses" & range == "ev_long" ~ 0.5,
     fuel_class == "Articulated trucks" ~ 1 )) %>% 
   mutate(cost = proportion * cost) %>% 
   group_by(year, fuel_class) %>% 

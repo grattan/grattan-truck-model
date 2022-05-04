@@ -2,12 +2,14 @@
 # This script prepares the charts estimating when total cost of ownership will 
 # be reached for electric HDVs with diesel
 
+source("R/00-setup.R")
 source("R/costs-modelling/estimate_tco.R")
-
 
 #' Running the function
 #' (is there a way to do this through `map` to generate heaps of options with different
 #' price scenarios etc.?)
+
+discount_rate <- 0.07
 
 
 # Binding various runs - sensitivity testing -----------------------------
@@ -20,11 +22,11 @@ tco_scenarios <- bind_rows(
     mutate(cost_scen = "low-fuel"),
   #20\% higher infrastructure costs
   estimate_tco(infr_costs = infrastructure_costs_all %>% 
-                 mutate(infrastructure_cost = infrastructure_cost * 1.15)) %>% 
+                 mutate(infrastructure_cost = infrastructure_cost * 1.5)) %>% 
     mutate(cost_scen = "high-infr"),
   #20% lower infra costs
   estimate_tco(infr_costs = infrastructure_costs_all %>% 
-                 mutate(infrastructure_cost = infrastructure_cost * 0.85)) %>% 
+                 mutate(infrastructure_cost = infrastructure_cost * 0.5)) %>% 
     mutate(cost_scen = "low-infr"),
   #Combinations of infrastructure costs and fuel costs
   estimate_tco(infr_costs = infrastructure_costs_all,
@@ -43,9 +45,9 @@ tco_summarised <- tco_scenarios %>%
   pivot_longer(cols = 10:15,
                names_to = "cost_type",
                values_to = "cost") %>% 
-  #Discounting at 4%
-  mutate(cost = (1 / (1 + 0.07)^(fleet_year - 2022)) * cost,
-         total_cost = (1 / (1 + 0.07)^(fleet_year - 2022)) * total_cost) %>% 
+  #Discounting 
+  mutate(cost = (1 / (1 + discount_rate)^(fleet_year - 2022)) * cost,
+         total_cost = (1 / (1 + discount_rate)^(fleet_year - 2022)) * total_cost) %>% 
   
   group_by(sales_year, fuel, cost_type, fuel_class, cost_scen) %>% 
   summarise(cost = sum(cost))
@@ -109,7 +111,7 @@ c3_tco_estimate <- tco_chart %>%
                     y = "Rigid trucks",
                     label = glue("<span style= 'font-size:15pt; color:{grattan_grey3}'>We estimate that an average<br>",
                                  "<span style= 'font-size:15pt; color:{grattan_red}'>**rigid truck**",
-                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will reach<br>TCO parity around<br>2023-2028")),
+                                 "<span style= 'font-size:15pt; color:{grattan_grey3}'> will reach<br>TCO parity around<br>2024-2029")),
                 hjust = "left",
                 lineheight = 1.5,
                 fill = "white", label.color = NA,

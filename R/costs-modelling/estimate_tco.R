@@ -1,7 +1,10 @@
 #' TCO function 
 #' 
-#' Turing the TCO estimate script into a function so we can run it with various different input
+#' Turning the TCO estimate script into a function so we can run it with various different input
 #' cost scenarios to sensitivity test
+#' 
+#' Note that this function ONLY WORKS FOR RIGID AND ARTICULATED TRUCKS. It's not designed
+#' for buses and non-freight vehicles
 
 
 #' TCO Chart 
@@ -76,11 +79,12 @@ maintenance <- tribble( ~fuel_class,                            ~fuel,          
 #Infrastructure cost data 
 # ICCT assume that 'low volume' is 0-1,000 trucks, 'medium volume' is 1,000-10,000, and higher is 10,000 + trucks. 
 # comparing this to our ev sales targets, that corresponds to about:
-#' Rigid trucks: high cost pre 2024, medium 2024 - 2025, and low 2025 onwards
+#' Rigid trucks: high cost pre 2024, medium 2024 - 2025, and low 2025 onwards. We assume post 2025, 
+#' that charging infrastructure costs continue to fall as volume increases. We assume cost falls to US $15,000 by 2030,
+#' and beyond that remain steady
 #' Articulated trucks: high pre 2030, medium 2030-2035 and low beyond that
 
-
-us_aus_conversion <- 1.40
+us_aus_conversion <- 1.33
 
 infr_cost_rid_art <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class,                      ~infrastructure_cost,          ~year,
                               "electric",    0,        "low",      "Articulated trucks",            180000 * us_aus_conversion,       2022,
@@ -88,7 +92,9 @@ infr_cost_rid_art <- tribble( ~fuel,        ~age,   ~volume,       ~fuel_class, 
                               "electric",    0,        "high",     "Articulated trucks",            70000 * us_aus_conversion,        2035,
                               "electric",    0,        "low",      "Rigid trucks",                  82000 * us_aus_conversion,        2022,
                               "electric",    0,        "medium",   "Rigid trucks",                  40000 * us_aus_conversion,        2024,
-                              "electric",    0,        "high",     "Rigid trucks",                  27000 * us_aus_conversion,        2026)
+                              "electric",    0,        "high",     "Rigid trucks",                  27000 * us_aus_conversion,        2026,
+                              "electric",    0,        "very high","Rigid trucks",                  15000 * us_aus_conversion,        2030)
+
 
 # Interpolating between data points
 art <- infr_cost_rid_art %>% 
@@ -102,19 +108,25 @@ infrastructure_costs_all <- bind_rows(
   approx(art$year, 
          art$infrastructure_cost,
          n = 14) %>% 
-    as.tibble() %>% 
+    as_tibble() %>% 
     mutate(fuel_class = "Articulated trucks"),
   
   approx(rig$year, 
          rig$infrastructure_cost,
-         n = 14) %>% 
-    as.tibble() %>% 
+         n = 9) %>% 
+    as_tibble() %>% 
     mutate(fuel_class = "Rigid trucks")) %>% 
   
   rename("sales_year" = x,
          "infrastructure_cost" = y) %>% 
   mutate(age = 0,
-         fuel = "electric")
+         fuel = "electric") %>% 
+  # and adding values for beyond the regression years, assuming costs remain fixed
+  # at the highest volume estimate (the last estimated year)
+  #group_by(fuel_class, age, fuel) %>% 
+  complete(sales_year = (2022:2040)) %>% 
+  na.locf() %>% 
+  ungroup()
 
 
 #Upfront costs 
@@ -190,9 +202,14 @@ estimate_tco <- function(
   tco_estimate <- left_join(tco_estimate, 
                             upfront_costs) %>% 
     
-    mutate(purchase_price = if_else(age == 0, cost, 0)) %>% 
-    select(-cost)
-  
+    #and adding residual values after depreciation
+    #depreciation rates based on ATO: https://introducers.westpac.com.au/wp-content/uploads/ATO-effective-life-guideline.pdf
+    mutate(purchase_price = if_else(age %in% c(0, 10), cost, 0)) %>% 
+    # we are saying put in the original price if 0 years old, and if 10 years old, put in
+    # a residual value as a negative figure (i.e. a gain, not expense), at 25\% of the original cost
+    # because this occurs at the tenth year it will also later be discounted
+    mutate(purchase_price = if_else(age == 10, purchase_price * -0.25, purchase_price)) %>% 
+    select(-cost) 
   
   
   # Adding fuel costs --------------------------------------------
@@ -268,9 +285,8 @@ estimate_tco <- function(
   
   # Adding for the totals
   tco_estimate <- tco_estimate %>% 
-    mutate(total_cost = purchase_price + fuel_cost + adblue_cost + maintenance_cost + infrastructure_cost + time_weight_penalty)
-  
-  
+    mutate(total_cost = purchase_price + fuel_cost + adblue_cost + maintenance_cost + infrastructure_cost + time_weight_penalty) %>% 
+    filter(fuel_class %in% c("Articulated trucks", "Rigid trucks"))
   
   return(tco_estimate)
   

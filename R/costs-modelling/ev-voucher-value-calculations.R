@@ -7,11 +7,9 @@
 source("R/00-setup.R")
 source("R/costs-modelling/estimate_tco.R")
 
-
+discount_rate <- 0.07
 
 #' Calculating TCO gap---------------------------------------------------
-
-#' For the moment this is just a point estimate, but we'll add scenarios later 
 
 estimated_tco <- estimate_tco()
 
@@ -33,8 +31,8 @@ tco_gap <- estimated_tco %>%
                names_to = "cost_type",
                values_to = "cost") %>% 
   #Discounting at 7%, where year = 0 when the vehicle is sold
-  mutate(cost = (1 / (1 + 0.07)^(fleet_year - sales_year)) * cost,
-         total_cost = (1 / (1 + 0.07)^(fleet_year - sales_year)) * total_cost) %>% 
+  mutate(cost = (1 / (1 + discount_rate)^(fleet_year - sales_year)) * cost,
+         total_cost = (1 / (1 + discount_rate)^(fleet_year - sales_year)) * total_cost) %>% 
   
   group_by(sales_year, fuel, cost_type, fuel_class, cost_scen) %>% 
   summarise(cost = sum(cost)) %>% 
@@ -71,9 +69,9 @@ public_cost_gap <- ev_scenarios %>%
          co2_social_cost, noise_cost) %>% 
   # Discounting and converting to individual vehicle costs
     # We're applying the discounting from the point of sales - i.e. year = 0 when the vehicle is sold
-  mutate(health_cost_total = (1 / (1 + 0.07)^(fleet_year - sales_year)) * health_cost_total / total,
-         co2_social_cost = (1 / (1 + 0.07)^(fleet_year - sales_year)) * co2_social_cost / total,
-         noise_cost = (1 / (1 + 0.07)^(fleet_year - sales_year)) * noise_cost / total) %>% 
+  mutate(health_cost_total = (1 / (1 + discount_rate)^(fleet_year - sales_year)) * health_cost_total / total,
+         co2_social_cost = (1 / (1 + discount_rate)^(fleet_year - sales_year)) * co2_social_cost / total,
+         noise_cost = (1 / (1 + discount_rate)^(fleet_year - sales_year)) * noise_cost / total) %>% 
   group_by(scenario, cost_scen, fuel_class, fuel, sales_year) %>% 
   summarise(health_cost_total = sum(health_cost_total),
             co2_social_cost = sum(co2_social_cost),
@@ -128,8 +126,9 @@ voucher_estimates <- left_join(public_cost_gap, tco_gap) %>%
   
   #calculate total spend
   left_join(ev_sales) %>%
-  mutate(total_gov_spend = ev_sales * gov_subsidy / 1000000) %>% 
+  mutate(total_gov_spend = ev_sales * gov_subsidy / 1000000) 
 
+voucher_estimates_latex <- voucher_estimates %>% 
   select(cost_scen, sales_year, fuel_class, tco_gap_half, public_cost_gap, gov_subsidy, total_gov_spend) %>% 
   #rounding and formatting nicely 
   mutate(tco_gap_half = round(tco_gap_half, -2) %>% format(big.mark = ",", scientific=FALSE),
@@ -152,6 +151,40 @@ voucher_estimates <- left_join(public_cost_gap, tco_gap) %>%
 #install.packages("gt")
 library(gt)
 
-voucher_estimates %>% gt::gt() %>% gt::as_latex() %>% clipr::write_clip()
+voucher_estimates_latex %>% gt::gt() %>% gt::as_latex() %>% clipr::write_clip()
+
+
+
+# Plotting the estimated voucher values -------------------
+
+voucher_estimates %>% 
+  select(fuel_class, sales_year, gov_subsidy) %>% 
+  pivot_wider(names_from = cost_scen,
+              values_from = gov_subsidy) %>% 
+  filter(sales_year <= 2028) %>% 
+  
+  ggplot() +
+  geom_linerange(aes(ymin = lower,
+                     ymax = upper,
+                     x = sales_year,
+                     colour = fuel_class),
+                 size = 7,
+                 alpha = 0.9) +
+  geom_hline(yintercept = 0, 
+             colour = "black") +
+  
+  theme_grattan() +
+  grattan_colour_manual(2) +
+  grattan_y_continuous(labels = label_dollar()) +
+  facet_grid(rows = vars(fuel_class), 
+             scales = "free_y") +
+  
+  labs(title = "How much should the government subsidise zero-emission trucks?",
+       subtitle = "Estimated subsidy values - upper and lower estimates",
+       x = NULL)
+
+
+
+
 
 

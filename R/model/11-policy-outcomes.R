@@ -371,16 +371,14 @@ write_rds(policy_outcomes, "data/policy_outcomes.rds")
 
 health_costs <- policy_outcomes %>%
   group_by(vkt_scenario, fleet_year, fuel_class, age, region, scenario, pollutant_cat2) %>% 
-  #assuming 95% of pm10 is pm2.5 for the moment
+  #assuming 95% of pm10 is pm2.5 
   #calculating costs - the / 1000000 is to convert from g to tonnes
   summarise(health_cost_total = sum(pollutant_total * damage_cost_t))
 
 write_rds(health_costs, "data/health_costs.rds")
 
 # Previous studies (ie.e https://www.epa.nsw.gov.au/~/media/EPA/Corporate%20Site/resources/air/HealthPartEmiss.ashx)
-# have excluded secondary costs because of this uncertainty - that is probably the approach we should take here 
-# because we have no real way of establishing this (and it' sporbbaly unlikely to significantly affect results.)
-# This makes our estimates more conservative. 
+# have excluded secondary costs because of this uncertainty 
 
 
 

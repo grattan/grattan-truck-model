@@ -136,8 +136,7 @@ c3_technology_costs <- all_tech %>%
   ggplot() +
   geom_linerange(aes(ymin = 1000 / min, ymax = 1000 / max,
                      x = axis_label,
-                     colour = technology,
-                     fill = technology),
+                     colour = technology),
                  alpha = 0.2,
                  size = 10) +
   
