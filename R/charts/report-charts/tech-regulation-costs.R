@@ -173,39 +173,3 @@ c3_technology_costs <- all_tech %>%
 
 
 
-# Old plot - as incremental cost ($/% improvement). Not included in report
-
-all_tech %>% 
-  ggplot() +
-  
-  geom_linerange(aes(ymin = min, ymax = max,
-                     x = axis_label,
-                     colour = technology,
-                     fill = technology),
-                 alpha = 0.2,
-                 size = 10) +
-  
-  geom_point(aes(axis_label, incr_cost, colour = technology, shape = cost_type),
-             position = "dodge",
-             size = 4, 
-             stroke = 1.5) +
-  
-  theme_grattan() +
-  theme(axis.text.x = element_markdown()) +
-  scale_color_manual(values = col_values) +
-  scale_fill_manual(values = col_values) +
-  scale_shape_manual(values = c(21, 20)) + 
-  grattan_y_continuous(labels = label_dollar(),
-                       limits = c(0, 16000)) +
-  
-  labs(x = NULL)
-
-#labs(x = NULL,
-#     title = "Engine and tyres provide the most cost effective co2 reduction",
-#     subtitle = "Cost per per centage improvement to fuel efficiency")
-
-
-
-
-
-

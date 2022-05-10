@@ -173,30 +173,8 @@ c2_euro_vi_cost <- policy_outcomes %>%
 
 
 
-
-# ---------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Alternative chart versions (Unused) ---------------------------------------------
-
-
-
-# Not used in report: Cumulative health costs:
-
-
-policy_outcomes %>% 
+# Cumulative health costs:
+c2_cum_euro_vi_cost <- policy_outcomes %>% 
   group_by(scenario, vkt_scenario, fleet_year) %>% 
   summarise(health_cost_total = sum(health_cost_total) / 1000000000) %>% 
   mutate(health_cost_total = health_cost_total * (1 / ((1 + 0.07) ^ (fleet_year - 2022)))) %>% 
@@ -252,7 +230,7 @@ policy_outcomes %>%
                 label = glue("<span style= 'font-size:15pt; color:{grattan_grey3}'>If Euro VI is introduced<br>",
                              "<span style='font-size:15pt; color:{colour_levs['Euro 6 (2024)']}'>**in 2024**, ",
                              "<span style='font-size:15pt; color:{grattan_grey3}'>cumulative health <br>costs from pollution will <br>be about ",
-                             "<span style='font-size:15pt; color:{colour_levs['Euro 6 (2024)']}'>**$6b**",
+                             "<span style='font-size:15pt; color:{colour_levs['Euro 6 (2024)']}'>**$6.5b**",
                              "<span style='font-size:15pt; color:{grattan_grey3}'> lower <br>by 2040"),
                 hjust = "left",
                 lineheight = 1.5,
@@ -265,8 +243,30 @@ policy_outcomes %>%
                     "<span style='font-size:17pt; color:{colour_levs['baseline']}'><br>**Not introduced**, ",
                     "<span style='font-size:17pt; color:{colour_levs['Euro 6 (2027)']}'>**introduced in 2027**, ",
                     "<span style='font-size:17pt; color:{colour_levs['Euro 6 (2024)']}'>**introduced in 2024**"),
-    x = NULL,
-    caption = "Note: Calculated with a discount rate of 7%. Does not include residual values.") 
+    x = NULL)
+    #caption = "Note: Calculated with a discount rate of 7%. Does not include residual values.") 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Alternative chart versions (Unused) ---------------------------------------------
+
 
 
 

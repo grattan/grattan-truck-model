@@ -35,18 +35,27 @@ save_plots <- function(types, data, names) {
 }
 
 
-# Preparing the data for the function
-report_charts <- list(c2_euro_vi_pollution, c2_euro_vi_cost, c2_old_trucks_share, c2_old_trucks_vkt_pmc25,
-                      c2_health_costs_per_truck, c3_emissions_forecast, c3_offset_costs, c3_emission_policy_scenarios,
-                      c3_technology_costs, c3_tco_estimate, c3_carbon_ev_diesel, c3_cba_chart)
-report_chart_names <- c("c2_euro_vi_pollution", "c2_euro_vi_cost", "c2_old_trucks_share", "c2_old_trucks_vkt_pmc25",
-                        "c2_health_costs_per_truck", "c3_emissions_forecast", "c3_offset_costs", "c3_emission_policy_scenarios",
-                        "c3_technology_costs", " c3_tco_estimate", "c3_carbon_ev_diesel", "c3_cba_chart")
-report_chart_types_pdf <- c("wholecolumn", "wholecolumn", "wholecolumn", "wholecolumn",
-                            "wholecolumn", "normal", "wholecolumn", "normal", 
-                            "normal", "normal", "normal", "normal")
+#' Preparing the data for the function
+#' Sometimes there are errors in some of the charts, where the script hasn't run. 
+#' this will pop up as an error, i.e. "Error: object 'c3_technology_costs' not found"
+#' the easiest way to solve this is to then go to the script of the chart that hasn't run 
+#' and just run it manually. Often it is these three so run the code below should fix it, I can't
+#' work out why it happens:
+source("R/charts/report-charts/tech-regulation-costs.R")
+source("R/charts/report-charts/vkt-vs-pm25-share.R")
+source("R/charts/report-charts/tco-date-estimate.R")
 
-# Saving plots using our function
+report_charts <- list(c2_euro_vi_pollution, c2_euro_vi_cost, c2_cum_euro_vi_cost, c2_old_trucks_share, c2_old_trucks_vkt_pmc25,
+                      c2_health_costs_per_truck, c3_emissions_forecast, c3_offset_costs, c3_emission_policy_scenarios,
+                      c3_technology_costs, c3_tco_estimate, c3_carbon_ev_diesel, c3_cba_chart, c3_zev_targets)
+report_chart_names <- c("c2_euro_vi_pollution", "c2_euro_vi_cost", "c2_cum_euro_vi_cost", "c2_old_trucks_share", "c2_old_trucks_vkt_pmc25",
+                        "c2_health_costs_per_truck", "c3_emissions_forecast", "c3_offset_costs", "c3_emission_policy_scenarios",
+                        "c3_technology_costs", " c3_tco_estimate", "c3_carbon_ev_diesel", "c3_cba_chart", "c3_zev_targets")
+report_chart_types_pdf <- c("wholecolumn", "wholecolumn", "wholecolumn", "wholecolumn","wholecolumn",
+                            "wholecolumn", "normal", "wholecolumn", "normal", 
+                            "normal", "normal", "normal", "normal", "wholecolumn")
+
+# Saving plots using our function we built above
 save_plots(data = report_charts, 
            names = report_chart_names,
            types = report_chart_types_pdf)
