@@ -49,7 +49,7 @@ c2_old_trucks_share <- fleet_distribution %>%
   summarise(count = sum(count)) %>% 
   filter(year_of_manufacture <= 2020) %>% 
   mutate(age_cat = if_else(
-    year_of_manufacture <= 2000, 
+    year_of_manufacture <= 2002, 
     "Vehicle > 20 years old",
     "Vehicle < 20 years old")) %>%   
     
@@ -67,16 +67,16 @@ c2_old_trucks_share <- fleet_distribution %>%
                              label = label_comma()) +
   
   # Title labels
-  grattan_label(aes(x = 1965,
-                    y = 33000,
-                    label = "Vehicle older than 20 years"),
+  grattan_label(aes(x = 1960,
+                    y = 22200,
+                    label = "Euro III or earlier"),
                 hjust = "left",
                 colour = grattan_red,
                 fontface = "bold") +
   
-  grattan_label(aes(x = 1965,
-                    y = 36000,
-                    label = "Vehicle younger than 20 years"),
+  grattan_label(aes(x = 1960,
+                    y = 25000,
+                    label = "Euro IV or later"),
                 hjust = "left",
                 colour = grattan_yellow,
                 fontface = "bold") +
