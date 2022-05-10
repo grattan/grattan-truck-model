@@ -95,14 +95,13 @@ euro_group_abs <- policy_outcomes %>%
   group_by(fuel_class, sales_year, total, pollutant_year) %>% 
   #first summarising down regions and health costs 
   summarise(health_cost_total = sum(health_cost_total),
-            vkt = sum(vkt)) %>% 
+            vkt = sum(vkt * total)) %>% 
   
   # now summarising into a table with the stats we are after 
   group_by(pollutant_year, fuel_class) %>% 
   summarise(total = sum(total),
             health_cost_total = sum(health_cost_total),
-            vkt = sum(vkt)) %>% 
-  ungroup()
+            vkt = sum(vkt)) 
   
 #' And now as proportions - first with articulated/rigid combined (so as a % of the whole,
 #' not as a % of each class)
@@ -135,7 +134,7 @@ all_euro_stats <- bind_rows(euro_comb, euro_sep) %>%
          vkt_cumulative = cumsum(vkt))
 
 #' Writing data 
-#write_csv(all_euro_stats, "vehicle-stats-by-euro.csv")
+write_csv(all_euro_stats, "vehicle-stats-by-euro.csv")
 
 
 
