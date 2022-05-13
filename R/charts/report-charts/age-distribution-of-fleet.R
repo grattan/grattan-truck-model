@@ -27,14 +27,16 @@ fleet_distribution <- read_csv("data-raw/tablebuilder/final/MVUS-2021-type-no-re
 
 # Calulting how many vehicles are over 20 yearsat time (so pre 2000)
 
-fleet_distribution %>% 
+proportions <- fleet_distribution %>% 
   filter(year_of_manufacture <= 2020) %>% 
   mutate(age_cat = if_else(
-    year_of_manufacture <= 2000, 
+    year_of_manufacture <= 2002, 
     "Vehicle > 20 years old",
     "Vehicle < 20 years old")) %>%   
   group_by(age_cat, series) %>% 
-  summarise(count = sum(count))
+  summarise(count = sum(count)) %>% 
+  ungroup() %>% 
+  mutate(percentage = count / sum(count))
 
 # Gives 604302 less than 20 years, and 172909 over 20
 # therefore 22% older, 
@@ -69,14 +71,14 @@ c2_old_trucks_share <- fleet_distribution %>%
   # Title labels
   grattan_label(aes(x = 1960,
                     y = 22200,
-                    label = "Euro III or earlier"),
+                    label = "Euro I or earlier"),
                 hjust = "left",
                 colour = grattan_red,
                 fontface = "bold") +
   
   grattan_label(aes(x = 1960,
                     y = 25000,
-                    label = "Euro IV or later"),
+                    label = "Euro III or later"),
                 hjust = "left",
                 colour = grattan_yellow,
                 fontface = "bold") +
@@ -84,13 +86,13 @@ c2_old_trucks_share <- fleet_distribution %>%
   # Percentage labels 
   grattan_label(aes(x = 2011.5,
                     y = 37000,
-                    label = "78%"),
+                    label = paste0(round(proportions$percentage[proportions$age_cat == "Vehicle < 20 years old"], digits = 2) * 100, "%")),
                 hjust = "middle",
                 colour = grattan_yellow,
                 fontface = "bold") +
   grattan_label(aes(x = 1980.5,
                     y = 7000,
-                    label = "22%"),
+                    label = paste0(round(proportions$percentage[proportions$age_cat == "Vehicle > 20 years old"], digits = 2) * 100, "%")),
                 hjust = "middle",
                 colour = grattan_red,
                 fontface = "bold") +
@@ -105,9 +107,6 @@ c2_old_trucks_share <- fleet_distribution %>%
 #grattan_save(filename = "atlas/lots-of-old-trucks.pdf",
 #             save_pptx = TRUE,
 #             type = "wholecolumn")
-
-
-
 
 
 
