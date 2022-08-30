@@ -3,7 +3,7 @@
 
 This project includes the analysis in the Grattan truck plan. 
 
-A detailed breakdown of the assumptions included in the modelling can be found in the technical appendix, a pdf file included in this project (or otherwise available here on overleaf: https://www.overleaf.com/project/62007381b8f6c7c71085577f). The code underpinning the model itself is also included, as described below. 
+A detailed breakdown of the assumptions included in the modelling can be found in the technical appendix, a pdf file included in this project. The code underpinning the model itself is also included, as described below. 
 
 
 
