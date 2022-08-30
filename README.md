@@ -3,7 +3,9 @@
 
 This project includes the analysis in the Grattan truck plan. 
 
-A detailed breakdown of the assumptions included in the modelling can be found in the technical appendix, a pdf file included in this project. The code underpinning the model itself is also included, as described below. 
+A detailed breakdown of the assumptions included in the modelling can be found in the technical appendix, a pdf file included in this project which si available here: https://github.com/grattan/grattan-truck-model/blob/master/Techical%20appendix%20to%20the%20grattan%20truck%20model.pdf. 
+
+The code underpinning the model itself is also included, as described below. 
 
 
 
